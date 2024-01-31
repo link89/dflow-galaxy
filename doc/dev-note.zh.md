@@ -4,11 +4,11 @@
 
 该文档不是完整的设计文档，只对一些关键设计决策进行记录。
 
-## 概述
+## 分析
 
-DFlow 基于 Argo Workflow 实现，属于确定性的声明式工作流。
-不同于一般指令式的工作流，声明式工作流在设计时需要提前考虑好空间的划分，
-否则当需要执行 all-reduce 操作时会产生困难。
+DFlow 基于 Argo Workflow 实现，属于声明式工作流。
+DFlow 最核心的不足是无法表达 Artifact 集合的概念，因此无法直接实现 fan-in/fan-out 操作。
+规避这一缺点的方法是对于需要 fan-in/fan-out 的步骤在文件输出/输入时使用公共前缀和相同的层次结构。
 
 ## 设计
 
@@ -56,19 +56,20 @@ DPGEN 工作流包含4个阶段的迭代: label, train, explore, select。
 ### 代码设计
 
 #### 基本结构
-声明式工作流的数据流是以副作用的形式体现的，即通过对输入数据的修改来实现数据的流动。
-因此每一个 DFlow 的基本工作单元可以设计为一个只有单一输入且无输出的纯函数。
+Argo Workflow 包含 parameter 和 artifact 两种输入类型。
+其中 parameter 即一般数据， 作用相当于纯函数的输入输出，
+artifact 则用于表示文件副作用，相当于 ctx。
 
-使用 dataclass 作为输入的数据结构以便于静态类型检查和重构。
+因此为与之对应，一个基本的设计单元应该具备如下形式
+```python
+def operator(in_params, ctx) -> out_params:
+    ...
+```
+其中 ctx 包含所有的 input artifact 和 output artifact,
+in_params 和 out_params 分别对应于 input parameter 和 output parameter.
 
-另外，由于 Python 表达层次化数据结构的能力较弱，
-因此入参采用扁平化的设计方式.
-
-利用 Python 的 Annotated 类型以区分 input/output 和 param/artifact.
-
-并且为了避免产生意料之外的更改，除 output_params 之外的所有参数都应该标注为 Final 类型.
-
-命名上建议采用 `in_p_*`, `in_a_*`, `out_p_*`, `out_a_*` 的方式以示区分.
+上述3种数据类型均采用 dataclass 表达，且 in_params 和 out_params 均为 frozen=True。
+使用元编程进行argo 配置生成可借助 Annotated 实现。
 
 #### 约定管理
 由于 DFlow 是基于约定的设计，因此需要采用一个中心化的方式对约定进行管理。
