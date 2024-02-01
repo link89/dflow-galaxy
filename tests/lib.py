@@ -18,12 +18,12 @@ class TestLib(unittest.TestCase):
         def foo(x):
             return x
 
-        Foo_pkl = dg_lib.pickle_form(Foo)
+        Foo_pkl = dg_lib.pickle_converts(Foo)
         r = eval(Foo_pkl)(1)
         self.assertIsInstance(r, Foo)
         self.assertEqual(r.x, 1)
 
-        foo_pkl = dg_lib.pickle_form(foo)
+        foo_pkl = dg_lib.pickle_converts(foo)
         r = eval(foo_pkl)(1)
         self.assertEqual(r, 1)
 

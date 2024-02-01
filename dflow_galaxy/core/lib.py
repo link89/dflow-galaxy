@@ -33,12 +33,12 @@ OutputParam = Annotated[T, Symbol.OUTPUT_PARAMETER]
 OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 
 
-def pickle_form(obj, pickle_module='cp', bz2_module='bz2', base64_module='base64'):
+def pickle_converts(obj, pickle_module='cp', bz2_module='bz2', base64_module='base64'):
     """
-    Convert an object to its pickle equvilent python code.
+    convert an object to its pickle string form
     """
     obj_pkl = cp.dumps(obj, protocol=cp.DEFAULT_PROTOCOL)
-    compress_level = 5 if len(obj_pkl) > 1024 else 1
+    compress_level = 5 if len(obj_pkl) > 4096 else 1
     compressed = bz2.compress(obj_pkl, compress_level)
     obj_b64 = base64.b64encode(compressed).decode('ascii')
     return f'{pickle_module}.loads({bz2_module}.decompress({base64_module}.b64decode({repr(obj_b64)})))'
@@ -135,7 +135,7 @@ def build_python_step(py_fn: Callable,
         f'script_path = {repr(script_path)}',
         'with open(args_file, "w") as fp:',
         '    json.dump(args, fp, indent=2)',
-        'os.system(f"python {script_path} {args_file}")',
+        'os.system(f"python {script_path}")',
     ])
 
     script = [
@@ -143,10 +143,10 @@ def build_python_step(py_fn: Callable,
         'import base64, json, bz2, os',
         '',
         '# deserialize function',
-        f'__fn = {pickle_form(py_fn)}',
+        f'__fn = {pickle_converts(py_fn)}',
         '',
         '# deserialize args type',
-        f'__ArgsType = {pickle_form(type(args))}',
+        f'__ArgsType = {pickle_converts(type(args))}',
         '',
         '# run the function',
         f'with open({repr(args_file)}, "r") as fp:',
