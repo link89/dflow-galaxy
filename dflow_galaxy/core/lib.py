@@ -3,6 +3,7 @@ import dflow
 
 from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict, get_type_hints
 from dataclasses import dataclass, fields, is_dataclass
+from collections import namedtuple
 from enum import IntEnum, auto
 from pathlib import Path
 import cloudpickle as cp
@@ -76,24 +77,33 @@ def iter_python_step_output(obj):
         yield f
 
 
-def python_step_build_source(py_fn: Callable,
-                             args,
-                             base_path: str,
-                             script_path: str):
-    """
-    Generate argo `source` field from a python step.
+_PythonStep = namedtuple('_PythonStep', ['source', 'script',
+                                         'dflow_input_artifacts',
+                                         'dflow_output_artifacts',
+                                         'dflow_output_parameters'])
 
-    This function is not to generate the actually python script that will be run.
-    It just generate the source field of an argo step,
-    which will prepare the inputs for the real python script.
+
+def build_python_step(py_fn: Callable,
+                      args,
+                      base_path: str) -> _PythonStep:
+    """
+    build a python step to run a python function.
     """
     sig = inspect.signature(py_fn)
     assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
     args_type = sig.parameters[next(iter(sig.parameters))].annotation
     assert isinstance(args, args_type), f'{args} is not an instance of {args_type}'
+    return_type  = sig.return_annotation
 
-    argo_input_artifacts: Dict[str, dflow.InputArtifact] = {}
-    argo_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
+    args_file = os.path.join(base_path, 'tmp/args.json')
+    script_path = os.path.join(base_path, 'tmp/script.py')
+    output_parameters_path = os.path.join(base_path, 'output-parameters')
+
+    dflow_input_artifacts: Dict[str, dflow.InputArtifact] = {}
+    dflow_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
+    dflow_output_parameters: Dict[str, dflow.OutputParameter] = {}
+
+    dflow_input_artifacts['__script__'] = dflow.InputArtifact(path=script_path)
 
     source = [
         'import os, json',
@@ -103,23 +113,22 @@ def python_step_build_source(py_fn: Callable,
 
     for f in iter_python_step_input(args):
         if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
-            # FIXME: this will have problem if the parameter contains double quotes
-            source.append(f'args[{repr(f.name)}] = json.loads("""[{{{{inputs.parameters.{f.name}}}}}]""")[0]')
+            # FIXME: may have error in some corner cases
+            if issubclass(f.type.__origin__, str):
+                val = f'"""{{{{inputs.parameters.{f.name}}}}}"""'
+            else:
+                val = f'json.loads("""{{{{inputs.parameters.{f.name}}}}}""")'
+            source.append(f'args[{repr(f.name)}] = {val}')
         elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-            print(f.type)
-            print(dir(f.type))
-            print(isinstance(f.type, str))
-            print(f.type.__origin__)
             path = os.path.join(base_path, 'input-artifacts', f.name)
-            argo_input_artifacts[f.name] = dflow.InputArtifact(path=path)
+            dflow_input_artifacts[f.name] = dflow.InputArtifact(path=path)
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
         elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
             path = os.path.join(base_path, 'output-artifacts', f.name)
-            argo_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
+            dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
-            source.append(f'os.makdirs(os.path.dirname(args[{repr(f.name)}]), exist_ok=True)')
+            source.append(f'os.makedirs(os.path.dirname(args[{repr(f.name)}]), exist_ok=True)')
 
-    args_file = os.path.join(base_path, 'tmp/args.json')
     source.extend([
         '',
         f'args_file = {repr(args_file)}',
@@ -128,26 +137,45 @@ def python_step_build_source(py_fn: Callable,
         '    json.dump(args, fp, indent=2)',
         'os.system(f"python {script_path} {args_file}")',
     ])
-    print('\n'.join(source))
-    return source, argo_input_artifacts, argo_output_artifacts
 
-
-def python_step_build_script(py_fn, input):
     script = [
         'import cloudpickle as cp',
-        'import bz2',
-        'import base64',
-        'import os',
-        'import json',
+        'import base64, json, bz2, os',
         '',
         '# deserialize function',
         f'__fn = {pickle_form(py_fn)}',
         '',
-        '# deserialize input type',
-        f'__input_type = {pickle_form(type(input))}',
+        '# deserialize args type',
+        f'__ArgsType = {pickle_form(type(args))}',
+        '',
+        '# run the function',
+        f'with open({repr(args_file)}, "r") as fp:',
+        '    __args = __ArgsType(**json.load(fp))',
+        '__ret = __fn(__args)',
+        '',
+        '# handle the return value',
+        f'os.makedirs({repr(output_parameters_path)}, exist_ok=True)',
     ]
 
+    for f in iter_python_step_output(return_type):
+        path = os.path.join(output_parameters_path, f.name)
+        if issubclass(f.type.__origin__, str):
+            script.extend([
+                f'with open({repr(path)}, "w") as fp:',
+                f'    fp.write(str(__ret.{f.name}))'
+            ])
+        else:
+            script.extend([
+                f'with open({repr(path)}, "w") as fp:',
+                f'    json.dump(__ret.{f.name}, fp)'
+            ])
+        dflow_output_parameters[f.name] = dflow.OutputParameter(value_from_path=path)
 
+    return _PythonStep(source='\n'.join(source),
+                       script='\n'.join(script),
+                       dflow_input_artifacts=dflow_input_artifacts,
+                       dflow_output_artifacts=dflow_output_artifacts,
+                       dflow_output_parameters=dflow_output_parameters)
 
 class DFlowBuilder:
     """
@@ -212,7 +240,7 @@ class DFlowBuilder:
         """
 
         def wrapped_fn(in_params: T_IN):
-            python_step_build_source(fn, in_params, mount_path)
+            build_python_step(fn, in_params, mount_path)
 
 
 
