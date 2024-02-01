@@ -1,7 +1,7 @@
 from dflow.op_template import ScriptOPTemplate
 import dflow
 
-from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict
+from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict, get_type_hints
 from dataclasses import dataclass, fields, is_dataclass
 from enum import IntEnum, auto
 from pathlib import Path
@@ -76,17 +76,21 @@ def iter_python_step_output(obj):
         yield f
 
 
-def build_python_source(py_fn: Callable,
-                        input_arg,
-                        mount_path: str,
-                        script_path: str):
+def python_step_build_source(py_fn: Callable,
+                             args,
+                             base_path: str,
+                             script_path: str):
     """
-    build a python script to handle inputs and outputs of an argo step.
+    Generate argo `source` field from a python step.
+
+    This function is not to generate the actually python script that will be run.
+    It just generate the source field of an argo step,
+    which will prepare the inputs for the real python script.
     """
     sig = inspect.signature(py_fn)
     assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
-    input_type = sig.parameters[next(iter(sig.parameters))].annotation
-    assert isinstance(input_arg, input_type), f'{input_arg} is not an instance of {input_type}'
+    args_type = sig.parameters[next(iter(sig.parameters))].annotation
+    assert isinstance(args, args_type), f'{args} is not an instance of {args_type}'
 
     argo_input_artifacts: Dict[str, dflow.InputArtifact] = {}
     argo_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
@@ -94,37 +98,41 @@ def build_python_source(py_fn: Callable,
     source = [
         'import os, json',
         '',
-        '__input = dict()',
+        'args = dict()',
     ]
 
-    for f in iter_python_step_input(input_arg):
+    for f in iter_python_step_input(args):
         if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
             # FIXME: this will have problem if the parameter contains double quotes
-            source.append(f'__input[{repr(f.name)}] = json.loads("""[{{{{inputs.parameters.{f.name}}}}}]""")[0]')
+            source.append(f'args[{repr(f.name)}] = json.loads("""[{{{{inputs.parameters.{f.name}}}}}]""")[0]')
         elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-            path = os.path.join(mount_path, 'input-artifacts', f.name)
+            print(f.type)
+            print(dir(f.type))
+            print(isinstance(f.type, str))
+            print(f.type.__origin__)
+            path = os.path.join(base_path, 'input-artifacts', f.name)
             argo_input_artifacts[f.name] = dflow.InputArtifact(path=path)
-            source.append(f'__input[{repr(f.name)}] = {repr(path)}')
+            source.append(f'args[{repr(f.name)}] = {repr(path)}')
         elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
-            path = os.path.join(mount_path, 'output-artifacts', f.name)
+            path = os.path.join(base_path, 'output-artifacts', f.name)
             argo_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
-            source.append(f'__input[{repr(f.name)}] = {repr(path)}')
-            source.append(f'os.makdirs(os.path.dirname(__input[{repr(f.name)}]), exist_ok=True)')
+            source.append(f'args[{repr(f.name)}] = {repr(path)}')
+            source.append(f'os.makdirs(os.path.dirname(args[{repr(f.name)}]), exist_ok=True)')
 
-    input_file = os.path.join(mount_path, 'tmp/input.json')
+    args_file = os.path.join(base_path, 'tmp/args.json')
     source.extend([
         '',
-        f'input_file = {repr(input_file)}',
+        f'args_file = {repr(args_file)}',
         f'script_path = {repr(script_path)}',
-        'with open(input_file, "w") as fp:',
-        '    json.dump(__input, fp)',
-        'os.system(f"python {script_path} {input_file}")',
+        'with open(args_file, "w") as fp:',
+        '    json.dump(args, fp, indent=2)',
+        'os.system(f"python {script_path} {args_file}")',
     ])
     print('\n'.join(source))
     return source, argo_input_artifacts, argo_output_artifacts
 
 
-def build_python_script(py_fn, input):
+def python_step_build_script(py_fn, input):
     script = [
         'import cloudpickle as cp',
         'import bz2',
@@ -204,7 +212,7 @@ class DFlowBuilder:
         """
 
         def wrapped_fn(in_params: T_IN):
-            build_python_source(fn, in_params, mount_path)
+            python_step_build_source(fn, in_params, mount_path)
 
 
 

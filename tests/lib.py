@@ -85,7 +85,7 @@ class TestLib(unittest.TestCase):
         def foo(input: FooInput) -> FooOutput:
             return FooOutput(input.x)
 
-        dg_lib.build_python_source(foo, FooInput(1, '2', '3'), '/tmp/dflow-galaxy', '/tmp/dflow-galaxy/script.py')
+        dg_lib.python_step_build_source(foo, FooInput(1, '2', '3'), '/tmp/dflow-galaxy', '/tmp/dflow-galaxy/script.py')
 
 if __name__ == '__main__':
     unittest.main()
