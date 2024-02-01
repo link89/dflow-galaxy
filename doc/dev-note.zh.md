@@ -48,9 +48,9 @@ DPGEN 工作流包含4个阶段的迭代: label, train, explore, select。
 
 其它由 DFlowBuilder 自动生成的文件内部文件，统一位于
 ```
-{s3_prefix}/.dflow_builder
-{s3_prefix}/.dflow_builder/python/pkg/{pkg_name}
-{s3_prefix}/.dflow_builder/python/fn/{hash}.py
+{s3_prefix}/.dflow
+{s3_prefix}/.dflow/python/pkg/{pkg_name}
+{s3_prefix}/.dflow/python/fn/{hash}.py
 ```
 
 ### 代码设计

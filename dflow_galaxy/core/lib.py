@@ -1,20 +1,23 @@
 from dflow.op_template import ScriptOPTemplate
 import dflow
 
-from typing import Final, Callable, TypeVar, Optional, Tuple, Union, Annotated
-from dataclasses import dataclass
-from pathlib import Path
+from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict
+from dataclasses import dataclass, fields, is_dataclass
 from enum import IntEnum, auto
-import os
-import shutil
+from pathlib import Path
 import cloudpickle as cp
 import tempfile
 import hashlib
+import inspect
+import base64
+import shutil
+import bz2
+import os
+
 
 T = TypeVar('T')
-T_IN_P = TypeVar('T_IN_P')
-T_CTX = TypeVar('T_CTX')
-T_OUT_P = TypeVar('T_OUT_P')
+T_IN = TypeVar('T_IN')
+T_OUT = TypeVar('T_OUT')
 
 
 class Symbol(IntEnum):
@@ -27,6 +30,114 @@ InputParam = Annotated[T, Symbol.INPUT_PARAMETER]
 InputArtifact = Annotated[str, Symbol.INPUT_ARTIFACT]
 OutputParam = Annotated[T, Symbol.OUTPUT_PARAMETER]
 OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
+
+
+def pickle_form(obj, pickle_module='cp', bz2_module='bz2', base64_module='base64'):
+    """
+    Convert an object to its pickle equvilent python code.
+    """
+    obj_pkl = cp.dumps(obj, protocol=cp.DEFAULT_PROTOCOL)
+    compress_level = 5 if len(obj_pkl) > 1024 else 1
+    compressed = bz2.compress(obj_pkl, compress_level)
+    obj_b64 = base64.b64encode(compressed).decode('ascii')
+    return f'{pickle_module}.loads({bz2_module}.decompress({base64_module}.b64decode({repr(obj_b64)})))'
+
+
+def iter_python_step_input(obj):
+    """
+    Iterate over the input fields of a python step.
+    A python step input should be:
+    1. A frozen dataclass.
+    2. All fields are annotated with InputParam, InputArtifact or OutputArtifact.
+    """
+    assert is_dataclass(obj), f'{obj} is not a dataclass'
+    assert obj.__dataclass_params__.frozen, f'{obj} is not frozen'
+    for f in fields(obj):
+        msg = f'{f.name} is not annotated with InputParam, InputArtifact or OutputArtifact'
+        assert hasattr(f.type, '__metadata__'), msg
+        assert f.type.__metadata__[0] in (
+            Symbol.INPUT_PARAMETER, Symbol.INPUT_ARTIFACT,
+            Symbol.OUTPUT_ARTIFACT), msg
+        yield f
+
+
+def iter_python_step_output(obj):
+    """
+    Iterate over the output fields of a python step.
+    A python step output should be:
+    1. A dataclass.
+    2. All fields are annotated with OutputParam.
+    """
+    assert is_dataclass(obj), f'{obj} is not a dataclass'
+    for f in fields(obj):
+        msg = f'{f.name} is not annotated with OutputParam'
+        assert hasattr(f.type, '__metadata__'), msg
+        assert f.type.__metadata__ [0] == Symbol.OUTPUT_PARAMETER, msg
+        yield f
+
+
+def build_python_source(py_fn: Callable,
+                        input_arg,
+                        mount_path: str,
+                        script_path: str):
+    """
+    build a python script to handle inputs and outputs of an argo step.
+    """
+    sig = inspect.signature(py_fn)
+    assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
+    input_type = sig.parameters[next(iter(sig.parameters))].annotation
+    assert isinstance(input_arg, input_type), f'{input_arg} is not an instance of {input_type}'
+
+    argo_input_artifacts: Dict[str, dflow.InputArtifact] = {}
+    argo_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
+
+    source = [
+        'import os, json',
+        '',
+        '__input = dict()',
+    ]
+
+    for f in iter_python_step_input(input_arg):
+        if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
+            # FIXME: this will have problem if the parameter contains double quotes
+            source.append(f'__input[{repr(f.name)}] = json.loads("""[{{{{inputs.parameters.{f.name}}}}}]""")[0]')
+        elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
+            path = os.path.join(mount_path, 'input-artifacts', f.name)
+            argo_input_artifacts[f.name] = dflow.InputArtifact(path=path)
+            source.append(f'__input[{repr(f.name)}] = {repr(path)}')
+        elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
+            path = os.path.join(mount_path, 'output-artifacts', f.name)
+            argo_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
+            source.append(f'__input[{repr(f.name)}] = {repr(path)}')
+            source.append(f'os.makdirs(os.path.dirname(__input[{repr(f.name)}]), exist_ok=True)')
+
+    input_file = os.path.join(mount_path, 'tmp/input.json')
+    source.extend([
+        '',
+        f'input_file = {repr(input_file)}',
+        f'script_path = {repr(script_path)}',
+        'with open(input_file, "w") as fp:',
+        '    json.dump(__input, fp)',
+        'os.system(f"python {script_path} {input_file}")',
+    ])
+    print('\n'.join(source))
+    return source, argo_input_artifacts, argo_output_artifacts
+
+
+def build_python_script(py_fn, input):
+    script = [
+        'import cloudpickle as cp',
+        'import bz2',
+        'import base64',
+        'import os',
+        'import json',
+        '',
+        '# deserialize function',
+        f'__fn = {pickle_form(py_fn)}',
+        '',
+        '# deserialize input type',
+        f'__input_type = {pickle_form(type(input))}',
+    ]
 
 
 
@@ -78,11 +189,11 @@ class DFlowBuilder:
         self.workflow.wait()
 
     def add_python_step(self,
-                        fn: Callable[[T_IN_P, T_CTX], T_OUT_P],
+                        fn: Callable[[T_IN], T_OUT],
                         name: Optional[str] = None,
                         with_param=None,
-                        mount_path: str = '/tmp/mnt/dflow',
-                        ) -> Callable[[T_IN_P, T_CTX], T_OUT_P]:
+                        mount_path: str = '/tmp/dflow',
+                        ) -> Callable[[T_IN], T_OUT]:
         """
         Convert a python function to a DFlow step.
 
@@ -92,126 +203,13 @@ class DFlowBuilder:
         4. Add the step to the workflow.
         """
 
-        def wrapped_fn(in_params: T_IN_P, ctx: T_CTX):
-            # serialize fn and upload to s3
-            fn_pickle = cp.dumps(fn, protocol=cp.DEFAULT_PROTOCOL)
-            fn_hash = hashlib.sha1(fn_pickle).hexdigest()
-            self.s3_dump(fn_pickle, 'system/py-fns', fn_hash, debug_func=shutil.copy)
-            fn_path = f'./mnt/system/py-fns/{fn_hash}'
-
-            # generate python code to handle input parameters and artifacts
-            argo_in_params_code = ['input_params = {}']
-            argo_in_params = {}
-            for k, v in in_params.items():
-                argo_in_params[k] = dflow.InputParameter(k)
-                # The {{arg}} will be replaced by argo workflow with plain text,
-                # so we need to use triple quotes to escape the quotes.
-                line = '''input_params[%s] = json.loads('["""{{inputs.parameters.%s}}"""]')[0]''' % (repr(k), k)
-                argo_in_params_code.append(line)
-            return wrapped_fn
+        def wrapped_fn(in_params: T_IN):
+            build_python_source(fn, in_params, mount_path)
 
 
 
 
-
-    def add_py_step(self,
-                    fn: Callable[[T_IN_P, T_IN_A, T_OUT_A], T_OUT_P],
-                    name: Optional[str] = None,
-                    with_param = None,
-                    python_cmd: str = 'python3',
-                    ) -> Callable[[T_IN_P, T_IN_A, T_OUT_A], StepResult[T_OUT_P, T_OUT_A]]:
-        """
-        Add a python step to the workflow.
-        """
-
-        def _fn(in_params: T_IN_P, in_artifacts: T_IN_A, out_artifacts: T_OUT_A):
-            # serialize fn and upload to s3
-            fn_pickle = cp.dumps(fn, protocol=cp.DEFAULT_PROTOCOL)
-            fn_hash = hashlib.sha1(fn_pickle).hexdigest()
-            with tempfile.NamedTemporaryFile('wb') as fp:
-                fp.write(fn_pickle)
-                fp.flush()
-                fn_s3_key = self.s3_upload(Path(fp.name), 'argo/py-fns', fn_hash, debug_func=shutil.copy)
-            fn_path = f'./mnt/argo/py-fns/{fn_hash}'
-
-            # generate python code to handle input parameters and artifacts
-            argo_in_params_code = ['input_params = {}']
-            argo_in_params = {}
-            for k, v in in_params.items():
-                argo_in_params[k] = dflow.InputParameter()
-                # The {{arg}} will be replaced by argo workflow with plain text,
-                # so we need to use triple quotes to escape the quotes.
-                line = '''input_params[%s] = json.loads(r'["""{{inputs.parameters.%s}}"""]')[0]''' % (repr(k), k)
-                argo_in_params_code.append(line)
-
-            argo_in_artifacts_code = ['input_artifacts = {}']
-            argo_in_artifacts = {}
-            for k, v in in_artifacts.items():
-                mnt_path = os.path.join('./mnt/argo/inputs/artifacts', k)
-                argo_in_artifacts[k] = dflow.InputArtifact(path=mnt_path)
-                input_artifact_line = f'input_artifacts[{repr(k)}] = {repr(mnt_path)}'
-                argo_in_artifacts_code.append(input_artifact_line)
-            argo_in_artifacts['__fn__'] = dflow.InputArtifact(path=fn_path)
-            argo_in_artifacts_code.append(f'input_artifacts["__fn__"] = {repr(fn_path)}')
-
-            argo_ret_path = './mnt/argo/outputs/parameters/ret.json'
-            argo_out_params = {
-                'ret': OutputParameter(value_from_path=argo_ret_path),
-            }
-
-            argo_out_artifacts_lines = ['output_artifacts = {}']
-            argo_out_artifacts = {}
-            for k, v in out_artifacts.items():
-                mnt_path = os.path.join('./mnt/argo/outputs/artifacts', k)
-                argo_out_artifacts[k] = OutputArtifact(path=Path(mnt_path))
-                output_artifact_line = f'output_artifacts[{repr(k)}] = {repr(mnt_path)}'
-                argo_out_artifacts_lines.append(output_artifact_line)
-
-            template = ScriptOPTemplate(
-                name='py-template-' + fn_hash,
-                command=python_cmd,
-                script='\n'.join([
-                    f'fn_path = {repr(fn_path)}',
-                    f'argo_ret_path = {repr(argo_ret_path)}',
-                    '',
-                    'import os, json, cloudpickle as cp',
-                    'def ensure_dir(path):',
-                    '    os.makedirs(os.path.dirname(path), exist_ok=True)',
-                    'with open(fn_path, "rb") as fp:',
-                    '    fn = cp.load(fp)',
-                    *argo_in_params_code,
-                    *argo_in_artifacts_code,
-                    *argo_out_artifacts_lines,
-                    'ret = fn(input_params, input_artifacts, output_artifacts)',
-                    'ensure_dir(argo_ret_path)',
-                    'with open(argo_ret_path, "w") as fp:',
-                    '    json.dump(ret, fp)',
-                ])
-            )
-            if argo_in_params:
-                template.inputs.parameters = argo_in_params
-            if argo_in_artifacts:
-                template.inputs.artifacts = argo_in_artifacts
-            if argo_out_params:
-                template.outputs.parameters = argo_out_params
-            if argo_out_artifacts:
-                template.outputs.artifacts = argo_out_artifacts
-
-            # build step
-            step_name = f'py-step-{fn_hash}' if name is None else name
-            step = Step(
-                name=step_name,
-                template=template,
-                artifacts={**in_artifacts, '__fn__': dflow.S3Artifact(fn_s3_key)},
-                parameters=in_params,
-            )
-
-            if with_param is not None:
-                step.with_param = with_param
-
-            self.workflow.add(step)
-            return StepResult(step)
-        return _fn
+        return wrapped_fn
 
 
     def _s3_get_key(self, *keys: str):

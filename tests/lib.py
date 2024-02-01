@@ -72,6 +72,20 @@ class TestLib(unittest.TestCase):
         with self.assertRaises(AssertionError):
             list(dg_lib.iter_python_step_output(Foo(1, 2)))
 
+    def test_convert_to_argo_script(self):
+        @dataclass(frozen=True)
+        class FooInput:
+            x: dg_lib.InputParam[int]
+            y: dg_lib.InputArtifact
+            z: dg_lib.OutputArtifact
+        @dataclass
+        class FooOutput:
+            x: dg_lib.OutputParam[int]
+
+        def foo(input: FooInput) -> FooOutput:
+            return FooOutput(input.x)
+
+        dg_lib.build_python_source(foo, FooInput(1, '2', '3'), '/tmp/dflow-galaxy', '/tmp/dflow-galaxy/script.py')
 
 if __name__ == '__main__':
     unittest.main()
