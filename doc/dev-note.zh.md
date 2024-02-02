@@ -10,6 +10,10 @@ DFlow 基于 Argo Workflow 实现，属于声明式工作流。
 DFlow 最核心的不足是无法表达 Artifact 集合的概念，因此无法直接实现 fan-in/fan-out 操作。
 规避这一缺点的方法是对于需要 fan-in/fan-out 的步骤在文件输出/输入时使用公共前缀和相同的层次结构。
 
+Argo Workflow 的另一个大问题是把 OutputArtifact 做为 Output 的一部分, 
+但实际上 OutputArtifact 与 InputArtifact 本质上都属于副作用的范畴, 应该做为 Context 的一部分并用作函数的入参。
+
+
 ## 设计
 
 ### 数据空间

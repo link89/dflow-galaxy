@@ -1,17 +1,17 @@
 from dflow.op_template import ScriptOPTemplate
 import dflow
 
-from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict, get_type_hints
-from dataclasses import dataclass, fields, is_dataclass
+from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict, Any
+from dataclasses import fields, is_dataclass, asdict
 from collections import namedtuple
 from enum import IntEnum, auto
 from pathlib import Path
+from uuid import uuid4
 import cloudpickle as cp
 import tempfile
 import hashlib
 import inspect
 import base64
-import shutil
 import bz2
 import os
 
@@ -77,26 +77,29 @@ def iter_python_step_output(obj):
         yield f
 
 
-_PythonStep = namedtuple('_PythonStep', ['source', 'script',
-                                         'dflow_input_artifacts',
-                                         'dflow_output_artifacts',
-                                         'dflow_output_parameters'])
+_PythonTemplate = namedtuple('_PythonStep', ['source', 'fn_str',
+                                             'dflow_input_parameters',
+                                             'dflow_input_artifacts',
+                                             'dflow_output_parameters',
+                                             'dflow_output_artifacts',
+                                             ])
 
 
-def build_python_step(py_fn: Callable,
-                      base_path: str) -> _PythonStep:
+def python_build_template(py_fn: Callable,
+                          base_dir: str) -> _PythonTemplate:
     """
-    build a python step to run a python function.
+    build python template from a python function
     """
     sig = inspect.signature(py_fn)
     assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
     args_type = sig.parameters[next(iter(sig.parameters))].annotation
     return_type  = sig.return_annotation
 
-    args_file = os.path.join(base_path, 'tmp/args.json')
-    script_path = os.path.join(base_path, 'tmp/script.py')
-    output_parameters_path = os.path.join(base_path, 'output-parameters')
+    args_file = os.path.join(base_dir, 'tmp/args.json')
+    script_path = os.path.join(base_dir, 'tmp/script.py')
+    output_parameters_path = os.path.join(base_dir, 'output-parameters')
 
+    dflow_input_parameters: Dict[str, dflow.InputParameter] = {}
     dflow_input_artifacts: Dict[str, dflow.InputArtifact] = {}
     dflow_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
     dflow_output_parameters: Dict[str, dflow.OutputParameter] = {}
@@ -116,13 +119,14 @@ def build_python_step(py_fn: Callable,
                 val = f'"""{{{{inputs.parameters.{f.name}}}}}"""'
             else:
                 val = f'json.loads("""{{{{inputs.parameters.{f.name}}}}}""")'
+            dflow_input_parameters[f.name] = dflow.InputParameter(name=f.name)
             source.append(f'args[{repr(f.name)}] = {val}')
         elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-            path = os.path.join(base_path, 'input-artifacts', f.name)
+            path = os.path.join(base_dir, 'input-artifacts', f.name)
             dflow_input_artifacts[f.name] = dflow.InputArtifact(path=path)
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
         elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
-            path = os.path.join(base_path, 'output-artifacts', f.name)
+            path = os.path.join(base_dir, 'output-artifacts', f.name)
             dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
             source.append(f'os.makedirs(os.path.dirname(args[{repr(f.name)}]), exist_ok=True)')
@@ -136,7 +140,7 @@ def build_python_step(py_fn: Callable,
         'os.system(f"python {script_path}")',
     ])
 
-    script = [
+    fn_str = [
         'import cloudpickle as cp',
         'import base64, json, bz2, os',
         '',
@@ -158,32 +162,35 @@ def build_python_step(py_fn: Callable,
     for f in iter_python_step_output(return_type):
         path = os.path.join(output_parameters_path, f.name)
         if issubclass(f.type.__origin__, str):
-            script.extend([
+            fn_str.extend([
                 f'with open({repr(path)}, "w") as fp:',
                 f'    fp.write(str(__ret.{f.name}))'
             ])
         else:
-            script.extend([
+            fn_str.extend([
                 f'with open({repr(path)}, "w") as fp:',
                 f'    json.dump(__ret.{f.name}, fp)'
             ])
         dflow_output_parameters[f.name] = dflow.OutputParameter(value_from_path=path)
 
-    return _PythonStep(source='\n'.join(source),
-                       script='\n'.join(script),
-                       dflow_input_artifacts=dflow_input_artifacts,
-                       dflow_output_artifacts=dflow_output_artifacts,
-                       dflow_output_parameters=dflow_output_parameters)
+    return _PythonTemplate(source='\n'.join(source),
+                           fn_str='\n'.join(fn_str),
+                           dflow_input_parameters=dflow_input_parameters,
+                           dflow_input_artifacts=dflow_input_artifacts,
+                           dflow_output_parameters=dflow_output_parameters,
+                           dflow_output_artifacts=dflow_output_artifacts)
+
 
 class DFlowBuilder:
     """
     A type friendly wrapper to build a DFlow workflow.
     """
 
-    def __init__(self, name:str, s3_prefix: str, debug=False):
+    def __init__(self, name:str, s3_prefix: str, base_dir: str = '/tmp/dflow-builder', debug=False):
         """
         :param name: The name of the workflow.
         :param s3_prefix: The base prefix of the S3 bucket to store data generated by the workflow.
+        :param base_dir: The base directory to mapping resources in remote container.
         :param debug: If True, the workflow will be run in debug mode.
         """
         if debug:
@@ -191,7 +198,9 @@ class DFlowBuilder:
 
         self.name: Final[str] = name
         self.s3_prefix: Final[str] = s3_prefix
-        self.workflow = dflow.Workflow(name=name)
+        self.base_dir: Final[str] = base_dir
+        self.workflow: Final[dflow.Workflow] = dflow.Workflow(name=name)
+        self._python_fns: Dict[Callable, str] = {}
 
     def s3_upload(self, path: os.PathLike, *keys: str, debug_func = None) -> str:
         """
@@ -224,27 +233,46 @@ class DFlowBuilder:
 
     def add_python_step(self,
                         fn: Callable[[T_IN], T_OUT],
-                        name: Optional[str] = None,
-                        with_param=None,
-                        mount_path: str = '/tmp/dflow',
+                        with_param: Any = None,
                         ) -> Callable[[T_IN], T_OUT]:
-        """
-        Convert a python function to a DFlow step.
-
-        1. Serialize the function and upload to S3.
-        2. Build a template to run the function.
-        3. Build a step to run the template.
-        4. Add the step to the workflow.
-        """
+        template = self._create_python_template(fn)
 
         def wrapped_fn(in_params: T_IN):
-            build_python_step(fn, in_params, mount_path)
+            step = dflow.Step(
+                name='python-step-' + template.name + '-' + str(uuid4()),
+                template=template,
+                with_param=with_param,
 
-
-
+            )
 
         return wrapped_fn
 
+
+
+    def _create_python_template(self, fn: Callable):
+        _template = python_build_template(fn, base_dir=self.base_dir)
+        fn_hash = hashlib.sha256(_template.fn_str.encode()).hexdigest()
+        dflow_template = ScriptOPTemplate(
+            name='python-template' + fn_hash,
+            command='python3',
+            script=_template.source,
+        )
+        dflow_template.inputs.parameters = _template.dflow_input_parameters
+        dflow_template.inputs.artifacts = _template.dflow_input_artifacts
+        dflow_template.outputs.parameters = _template.dflow_output_parameters
+        dflow_template.outputs.artifacts = _template.dflow_output_artifacts
+        # upload python script to s3
+        key = self._get_or_create_python_fn(fn, _template.fn_str, fn_hash)
+        dflow_template.inputs.artifacts['__fn__'] = dflow.InputArtifact(
+            source=dflow.S3Artifact(key=key),
+        )
+        return dflow_template
+
+    def _get_or_create_python_fn(self, fn, fn_str: str, fn_hash: str):
+        if fn not in self._python_fns:
+            fn_prefix = self.s3_dump(fn_str, 'build-in/python/fn', fn_hash)
+            self._python_fns[fn] = fn_prefix
+        return self._python_fns[fn]
 
     def _s3_get_key(self, *keys: str):
         return os.path.join(self.s3_prefix, *keys)

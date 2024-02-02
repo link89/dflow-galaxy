@@ -85,7 +85,7 @@ class TestLib(unittest.TestCase):
         def foo(input: FooInput) -> FooOutput:
             return FooOutput(input.x)
 
-        ret = dg_lib.build_python_step(foo, base_path='/tmp/dflow-galaxy')
+        ret = dg_lib.python_build_template(foo, base_dir='/tmp/dflow-galaxy')
         print(ret.source)
         print(ret.script)
 
