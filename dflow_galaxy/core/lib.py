@@ -84,7 +84,6 @@ _PythonStep = namedtuple('_PythonStep', ['source', 'script',
 
 
 def build_python_step(py_fn: Callable,
-                      args,
                       base_path: str) -> _PythonStep:
     """
     build a python step to run a python function.
@@ -92,7 +91,6 @@ def build_python_step(py_fn: Callable,
     sig = inspect.signature(py_fn)
     assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
     args_type = sig.parameters[next(iter(sig.parameters))].annotation
-    assert isinstance(args, args_type), f'{args} is not an instance of {args_type}'
     return_type  = sig.return_annotation
 
     args_file = os.path.join(base_path, 'tmp/args.json')
@@ -111,7 +109,7 @@ def build_python_step(py_fn: Callable,
         'args = dict()',
     ]
 
-    for f in iter_python_step_input(args):
+    for f in iter_python_step_input(args_type):
         if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
             # FIXME: may have error in some corner cases
             if issubclass(f.type.__origin__, str):
@@ -146,7 +144,7 @@ def build_python_step(py_fn: Callable,
         f'__fn = {pickle_converts(py_fn)}',
         '',
         '# deserialize args type',
-        f'__ArgsType = {pickle_converts(type(args))}',
+        f'__ArgsType = {pickle_converts(args_type)}',
         '',
         '# run the function',
         f'with open({repr(args_file)}, "r") as fp:',
