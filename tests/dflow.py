@@ -2,6 +2,9 @@ from dataclasses import dataclass
 import unittest
 
 from dflow_galaxy.core import dflow
+import dflow as _dflow
+from dflow.op_template import ScriptOPTemplate
+
 
 
 class TestLib(unittest.TestCase):
@@ -89,7 +92,19 @@ class TestLib(unittest.TestCase):
         print(ret.source)
         print(ret.fn_str)
 
+    def test_parse_s3_artifact_url(self):
+        url = 's3://bucket/key?sub_path=abc'
+        actual = dflow.parse_artifact_url(url)
+        self.assertIsInstance(actual, _dflow.S3Artifact)
 
+    def test_parse_str_artifact_url(self):
+        template = ScriptOPTemplate()
+        template.outputs.artifacts = {'x': _dflow.OutputArtifact()}
+
+        step = _dflow.Step(name='step',
+                           template=template)
+        url = str(step.outputs.artifacts['x'])
+        self.assertEqual(dflow.parse_artifact_url(url), url)
 
 if __name__ == '__main__':
     unittest.main()

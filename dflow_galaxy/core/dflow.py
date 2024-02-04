@@ -1,8 +1,9 @@
 from dflow.op_template import ScriptOPTemplate
 import dflow
 
-from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Dict, Any
+from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Generic, Dict, Any, Iterable
 from dataclasses import fields, is_dataclass, asdict
+from urllib.parse import urlparse, parse_qs
 from collections import namedtuple
 from enum import IntEnum, auto
 from pathlib import Path
@@ -27,10 +28,36 @@ class Symbol(IntEnum):
     OUTPUT_PARAMETER = auto()
     OUTPUT_ARTIFACT = auto()
 
+
 InputParam = Annotated[T, Symbol.INPUT_PARAMETER]
 InputArtifact = Annotated[str, Symbol.INPUT_ARTIFACT]
 OutputParam = Annotated[T, Symbol.OUTPUT_PARAMETER]
 OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
+
+
+class Step(Generic[T_IN, T_OUT]):
+    def __init__(self, step: dflow.Step):
+        self.step = step
+
+    @property
+    def inputs(self) -> T_IN:
+        return ObjProxy(self.step.inputs.parameters,
+                        self.step.inputs.artifacts,
+                        self.step.outputs.artifacts)  # type: ignore
+
+    @property
+    def outputs(self) -> T_OUT:
+        return ObjProxy(self.step.outputs.parameters)  # type: ignore
+
+
+class ObjProxy:
+    def __init__(self, *obj):
+        self.objs = obj
+
+    def __getattr__(self, name):
+        for obj in self.objs:
+            if hasattr(obj, name):
+                return getattr(obj, name)
 
 
 def pickle_converts(obj, pickle_module='cp', bz2_module='bz2', base64_module='base64'):
@@ -59,7 +86,7 @@ def iter_python_step_args(obj):
         assert f.type.__metadata__[0] in (
             Symbol.INPUT_PARAMETER, Symbol.INPUT_ARTIFACT,
             Symbol.OUTPUT_ARTIFACT), msg
-        yield f
+        yield f, getattr(obj, f.name, None)
 
 
 def iter_python_step_return(obj):
@@ -74,10 +101,10 @@ def iter_python_step_return(obj):
         msg = f'{f.name} is not annotated with OutputParam'
         assert hasattr(f.type, '__metadata__'), msg
         assert f.type.__metadata__ [0] == Symbol.OUTPUT_PARAMETER, msg
-        yield f
+        yield f, getattr(obj, f.name, None)
 
 
-_PythonTemplate = namedtuple('_PythonStep', ['source', 'fn_str',
+_PythonTemplate = namedtuple('_PythonStep', ['source', 'fn_str', 'script_path',
                                              'dflow_input_parameters',
                                              'dflow_input_artifacts',
                                              'dflow_output_parameters',
@@ -104,15 +131,13 @@ def python_build_template(py_fn: Callable,
     dflow_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
     dflow_output_parameters: Dict[str, dflow.OutputParameter] = {}
 
-    dflow_input_artifacts['__script__'] = dflow.InputArtifact(path=script_path)
-
     source = [
         'import os, json',
         '',
         'args = dict()',
     ]
 
-    for f in iter_python_step_args(args_type):
+    for f, v in iter_python_step_args(args_type):
         if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
             # FIXME: may have error in some corner cases
             if issubclass(f.type.__origin__, str):
@@ -159,7 +184,7 @@ def python_build_template(py_fn: Callable,
         f'os.makedirs({repr(output_parameters_path)}, exist_ok=True)',
     ]
 
-    for f in iter_python_step_return(return_type):
+    for f, v in iter_python_step_return(return_type):
         path = os.path.join(output_parameters_path, f.name)
         if issubclass(f.type.__origin__, str):
             fn_str.extend([
@@ -175,11 +200,24 @@ def python_build_template(py_fn: Callable,
 
     return _PythonTemplate(source='\n'.join(source),
                            fn_str='\n'.join(fn_str),
+                           script_path=script_path,
                            dflow_input_parameters=dflow_input_parameters,
                            dflow_input_artifacts=dflow_input_artifacts,
                            dflow_output_parameters=dflow_output_parameters,
                            dflow_output_artifacts=dflow_output_artifacts)
 
+def parse_artifact_url(url: Union[str, dflow.OutputArtifact]) -> Union[dflow.S3Artifact, dflow.OutputArtifact, str]:
+    """
+    parse an artifact url to a dflow artifact object
+    """
+    if isinstance(url, dflow.OutputArtifact):
+        return url
+    assert isinstance(url, str), f'{url} should be a string'
+    parsed = urlparse(url)
+    if parsed.scheme == 's3':
+        return dflow.S3Artifact(key=parsed.path)
+    else:
+        return url
 
 class DFlowBuilder:
     """
@@ -234,28 +272,49 @@ class DFlowBuilder:
     def add_python_step(self,
                         fn: Callable[[T_IN], T_OUT],
                         with_param: Any = None,
-                        ) -> Callable[[T_IN], T_OUT]:
-        template = self._create_python_template(fn)
+                        uid: Optional[str] = None,
+                        ) -> Callable[[T_IN], Step[T_IN, T_OUT]]:
+        """
+        Create and add a Python step to the workflow.
 
+        Due to the design flaw of the Argo Workflow that the s3 key cannot be set as step arguments,
+        for each step a dedicated template have to be created.
+        Ref: https://github.com/argoproj/argo-workflows/discussions/12606#discussioncomment-8358302
+        """
+        if uid is None:
+            uid = str(uuid4())
+
+        template = self._create_python_template(fn, uid=uid)
         def wrapped_fn(in_params: T_IN):
+            parameters = {}
+            artifacts = {}
+
+            for f, v in iter_python_step_args(in_params):
+                if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
+                    parameters[f.name] = v
+                elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
+                    artifacts[f.name] = dflow.InputArtifact(source=parse_artifact_url(v))
+
             step = dflow.Step(
-                name='python-step-' + template.name + '-' + str(uuid4()),
+                name='python-step-' + template.name + '-' + uid,
                 template=template,
                 with_param=with_param,
-                parameters={
-                }
-
+                parameters=parameters,
+                artifacts=artifacts,
             )
+            self.workflow.add(step)
 
+            return Step(step)
         return wrapped_fn
 
-
-    def _create_python_template(self, fn: Callable):
+    def _create_python_template(self, fn: Callable, uid: Optional[str] = None, python_cmd: str = 'python3'):
+        if uid is None:
+            uid = str(uuid4())
         _template = python_build_template(fn, base_dir=self.base_dir)
         fn_hash = hashlib.sha256(_template.fn_str.encode()).hexdigest()
         dflow_template = ScriptOPTemplate(
-            name='python-template' + fn_hash,
-            command='python3',
+            name='python-template' + uid,
+            command=python_cmd,
             script=_template.source,
         )
         dflow_template.inputs.parameters = _template.dflow_input_parameters
@@ -266,6 +325,7 @@ class DFlowBuilder:
         key = self._get_or_create_python_fn(fn, _template.fn_str, fn_hash)
         dflow_template.inputs.artifacts['__fn__'] = dflow.InputArtifact(
             source=dflow.S3Artifact(key=key),
+            path=_template.script_path,
         )
         return dflow_template
 
