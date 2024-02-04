@@ -44,7 +44,7 @@ def pickle_converts(obj, pickle_module='cp', bz2_module='bz2', base64_module='ba
     return f'{pickle_module}.loads({bz2_module}.decompress({base64_module}.b64decode({repr(obj_b64)})))'
 
 
-def iter_python_step_input(obj):
+def iter_python_step_args(obj):
     """
     Iterate over the input fields of a python step.
     A python step input should be:
@@ -62,7 +62,7 @@ def iter_python_step_input(obj):
         yield f
 
 
-def iter_python_step_output(obj):
+def iter_python_step_return(obj):
     """
     Iterate over the output fields of a python step.
     A python step output should be:
@@ -112,7 +112,7 @@ def python_build_template(py_fn: Callable,
         'args = dict()',
     ]
 
-    for f in iter_python_step_input(args_type):
+    for f in iter_python_step_args(args_type):
         if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
             # FIXME: may have error in some corner cases
             if issubclass(f.type.__origin__, str):
@@ -159,7 +159,7 @@ def python_build_template(py_fn: Callable,
         f'os.makedirs({repr(output_parameters_path)}, exist_ok=True)',
     ]
 
-    for f in iter_python_step_output(return_type):
+    for f in iter_python_step_return(return_type):
         path = os.path.join(output_parameters_path, f.name)
         if issubclass(f.type.__origin__, str):
             fn_str.extend([
@@ -242,11 +242,12 @@ class DFlowBuilder:
                 name='python-step-' + template.name + '-' + str(uuid4()),
                 template=template,
                 with_param=with_param,
+                parameters={
+                }
 
             )
 
         return wrapped_fn
-
 
 
     def _create_python_template(self, fn: Callable):
