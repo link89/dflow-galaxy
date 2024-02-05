@@ -13,6 +13,7 @@ import tempfile
 import hashlib
 import inspect
 import base64
+import shutil
 import bz2
 import os
 
@@ -36,18 +37,18 @@ OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 
 
 class Step(Generic[T_IN, T_OUT]):
-    def __init__(self, step: dflow.Step):
-        self.step = step
+    def __init__(self, df_step: dflow.Step):
+        self.df_step = df_step
 
     @property
     def inputs(self) -> T_IN:
-        return ObjProxy(self.step.inputs.parameters,
-                        self.step.inputs.artifacts,
-                        self.step.outputs.artifacts)  # type: ignore
+        return ObjProxy(self.df_step.inputs.parameters,
+                        self.df_step.inputs.artifacts,
+                        self.df_step.outputs.artifacts)  # type: ignore
 
     @property
     def outputs(self) -> T_OUT:
-        return ObjProxy(self.step.outputs.parameters)  # type: ignore
+        return ObjProxy(self.df_step.outputs.parameters)  # type: ignore
 
 
 class ObjProxy:
@@ -58,6 +59,9 @@ class ObjProxy:
         for obj in self.objs:
             if hasattr(obj, name):
                 return getattr(obj, name)
+            elif name in obj:
+                return obj[name]
+        raise AttributeError(f'{name} not found in {self.objs}')
 
 
 def pickle_converts(obj, pickle_module='cp', bz2_module='bz2', base64_module='base64'):
@@ -96,6 +100,9 @@ def iter_python_step_return(obj):
     1. A dataclass.
     2. All fields are annotated with OutputParam.
     """
+    if obj is inspect.Signature.empty or obj is None:
+        return
+
     assert is_dataclass(obj), f'{obj} is not a dataclass'
     for f in fields(obj):
         msg = f'{f.name} is not annotated with OutputParam'
@@ -122,8 +129,8 @@ def python_build_template(py_fn: Callable,
     args_type = sig.parameters[next(iter(sig.parameters))].annotation
     return_type  = sig.return_annotation
 
-    args_file = os.path.join(base_dir, 'tmp/args.json')
-    script_path = os.path.join(base_dir, 'tmp/script.py')
+    args_file = os.path.join(base_dir, 'fn/args.json')
+    script_path = os.path.join(base_dir, 'fn/script.py')
     output_parameters_path = os.path.join(base_dir, 'output-parameters')
 
     dflow_input_parameters: Dict[str, dflow.InputParameter] = {}
@@ -133,7 +140,8 @@ def python_build_template(py_fn: Callable,
 
     source = [
         'import os, json',
-        '',
+        f'base_dir = {repr(base_dir)}',
+        'os.makedirs(os.path.dirname(base_dir), exist_ok=True)',
         'args = dict()',
     ]
 
@@ -184,6 +192,8 @@ def python_build_template(py_fn: Callable,
         f'os.makedirs({repr(output_parameters_path)}, exist_ok=True)',
     ]
 
+
+
     for f, v in iter_python_step_return(return_type):
         path = os.path.join(output_parameters_path, f.name)
         if issubclass(f.type.__origin__, str):
@@ -233,6 +243,8 @@ class DFlowBuilder:
         """
         if debug:
             dflow.config['mode'] = 'debug'
+            # string literal /tmp will be replaced under debug mode
+            assert base_dir.startswith('/tmp'), 'base_dir must be a subdirectory of /tmp when debug is True'
 
         self.name: Final[str] = name
         self.s3_prefix: Final[str] = s3_prefix
@@ -240,7 +252,7 @@ class DFlowBuilder:
         self.workflow: Final[dflow.Workflow] = dflow.Workflow(name=name)
         self._python_fns: Dict[Callable, str] = {}
 
-    def s3_upload(self, path: os.PathLike, *keys: str, debug_func = None) -> str:
+    def s3_upload(self, path: os.PathLike, *keys: str, debug_func = shutil.copy) -> str:
         """
         upload local file to S3.
 
@@ -251,7 +263,7 @@ class DFlowBuilder:
         key = self._s3_get_key(*keys)
         return dflow.upload_s3(path, key, debug_func=debug_func)
 
-    def s3_dump(self, data: Union[bytes, str], *keys: str, debug_func = None) -> str:
+    def s3_dump(self, data: Union[bytes, str], *keys: str, debug_func = shutil.copy) -> str:
         """
         Dump data to s3.
 
@@ -269,13 +281,13 @@ class DFlowBuilder:
         self.workflow.submit()
         self.workflow.wait()
 
-    def add_python_step(self,
-                        fn: Callable[[T_IN], T_OUT],
-                        with_param: Any = None,
-                        uid: Optional[str] = None,
-                        ) -> Callable[[T_IN], Step[T_IN, T_OUT]]:
+    def make_python_step(self,
+                         fn: Callable[[T_IN], T_OUT],
+                         with_param: Any = None,
+                         uid: Optional[str] = None,
+                         ) -> Callable[[T_IN], Step[T_IN, T_OUT]]:
         """
-        Create and add a Python step to the workflow.
+        Make a python step.
 
         Due to the design flaw of the Argo Workflow that the s3 key cannot be set as step arguments,
         for each step a dedicated template have to be created.
@@ -293,7 +305,7 @@ class DFlowBuilder:
                 if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
                     parameters[f.name] = v
                 elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-                    artifacts[f.name] = dflow.InputArtifact(source=parse_artifact_url(v))
+                    artifacts[f.name] = dflow.InputArtifact(source=parse_artifact_url(v))  # type: ignore
 
             step = dflow.Step(
                 name='python-step-' + template.name + '-' + uid,
@@ -302,8 +314,6 @@ class DFlowBuilder:
                 parameters=parameters,
                 artifacts=artifacts,
             )
-            self.workflow.add(step)
-
             return Step(step)
         return wrapped_fn
 

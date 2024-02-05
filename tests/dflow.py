@@ -92,6 +92,18 @@ class TestLib(unittest.TestCase):
         print(ret.source)
         print(ret.fn_str)
 
+    def test_argo_script_without_return(self):
+        @dataclass(frozen=True)
+        class FooInput:
+            ...
+        def foo(input: FooInput):
+            pass
+        def foo2(input: FooInput) -> None:
+            return None
+
+        dflow.python_build_template(foo, base_dir='/tmp/dflow-galaxy')
+        dflow.python_build_template(foo2, base_dir='/tmp/dflow-galaxy')
+
     def test_parse_s3_artifact_url(self):
         url = 's3://bucket/key?sub_path=abc'
         actual = dflow.parse_artifact_url(url)
