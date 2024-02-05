@@ -104,19 +104,5 @@ class TestLib(unittest.TestCase):
         dflow.python_build_template(foo, base_dir='/tmp/dflow-galaxy')
         dflow.python_build_template(foo2, base_dir='/tmp/dflow-galaxy')
 
-    def test_parse_s3_artifact_url(self):
-        url = 's3://bucket/key?sub_path=abc'
-        actual = dflow.parse_artifact_url(url)
-        self.assertIsInstance(actual, _dflow.S3Artifact)
-
-    def test_parse_str_artifact_url(self):
-        template = ScriptOPTemplate()
-        template.outputs.artifacts = {'x': _dflow.OutputArtifact()}
-
-        step = _dflow.Step(name='step',
-                           template=template)
-        url = str(step.outputs.artifacts['x'])
-        self.assertEqual(dflow.parse_artifact_url(url), url)
-
 if __name__ == '__main__':
     unittest.main()

@@ -145,7 +145,7 @@ def python_build_template(py_fn: Callable,
     dflow_output_parameters: Dict[str, dflow.OutputParameter] = {}
 
     source = [
-        'import os, json',
+        'import os, json, tarfile',
         f'base_dir = {repr(base_dir)}',
         f'fn_dir = {repr(fn_dir)}',
         f'pkg_dir = {repr(pkg_dir)}',
@@ -181,12 +181,21 @@ def python_build_template(py_fn: Callable,
         '',
         'with open(args_file, "w") as fp:',
         '    json.dump(args, fp, indent=2)',
-        'os.system(f"python {script_path}")',
+        '',
+        '# unpack tarball in pkg_dir',
+        'for file in os.listdir(pkg_dir):',
+        '    if file.endswith(".tar.bz2"):',
+        '        with tarfile.open(os.path.join(pkg_dir, file), "r:bz2") as tar_fp:',
+        '            tar_fp.extractall(pkg_dir)',
+        '',
+        '# insert pkg_dir to PYTHONPATH',
+        'os.environ["PYTHONPATH"] = pkg_dir + ":" + os.environ.get("PYTHONPATH", "")',
+        'os.system(f"python {script_path} {args_file}")',
     ])
 
     fn_str = [
         'import cloudpickle as cp',
-        'import base64, json, bz2, os',
+        'import base64, json, bz2, os, sys',
         '',
         '# deserialize function',
         f'__fn = {pickle_converts(py_fn)}',
@@ -195,7 +204,7 @@ def python_build_template(py_fn: Callable,
         f'__ArgsType = {pickle_converts(args_type)}',
         '',
         '# run the function',
-        f'with open({repr(args_file)}, "r") as fp:',
+        'with open(sys.argv[1], "r") as fp:',
         '    __args = __ArgsType(**json.load(fp))',
         '__ret = __fn(__args)',
         '',
@@ -228,18 +237,6 @@ def python_build_template(py_fn: Callable,
                            dflow_output_parameters=dflow_output_parameters,
                            dflow_output_artifacts=dflow_output_artifacts)
 
-def parse_artifact_url(url: Union[str, dflow.OutputArtifact]) -> Union[dflow.S3Artifact, dflow.OutputArtifact, str]:
-    """
-    parse an artifact url to a dflow artifact object
-    """
-    if isinstance(url, dflow.OutputArtifact):
-        return url
-    assert isinstance(url, str), f'{url} should be a string'
-    parsed = urlparse(url)
-    if parsed.scheme == 's3':
-        return dflow.S3Artifact(key=parsed.path)
-    else:
-        return url
 
 class DFlowBuilder:
     """
@@ -256,6 +253,7 @@ class DFlowBuilder:
         """
         if debug:
             dflow.config['mode'] = 'debug'
+            s3_prefix = s3_prefix.lstrip('/')
 
         assert base_dir.startswith('/tmp'), 'dflow: base_dir must be a subdirectory of /tmp'
 
@@ -266,6 +264,7 @@ class DFlowBuilder:
         self._python_fns: Dict[Callable, str] = {}
         self._python_pkgs: Dict[str, str] = {}
         self._s3_debug_fn = s3_debug_fn
+        self._debug = debug
 
     def add_python_pkg(self, pkg: str):
         """
@@ -344,7 +343,9 @@ class DFlowBuilder:
                 if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
                     parameters[f.name] = v
                 elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-                    artifacts[f.name] = dflow.InputArtifact(source=parse_artifact_url(v))  # type: ignore
+                    artifacts[f.name] = dflow.InputArtifact(source=self._s3_parse_url(v))  # type: ignore
+                elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
+                    template.outputs.artifacts[f.name].save = [self._s3_parse_url(v)]  # type: ignore
 
             step = dflow.Step(
                 name='python-step-' + uid,
@@ -400,6 +401,17 @@ class DFlowBuilder:
 
     def _s3_get_key(self, *keys: str):
         return os.path.join(self.s3_prefix, *keys)
+
+    def _s3_parse_url(self, url: Union[str, dflow.OutputArtifact, dflow.S3Artifact]) -> Union[str, dflow.OutputArtifact, dflow.S3Artifact]:
+        if isinstance(url, dflow.OutputArtifact) or isinstance(url, dflow.S3Artifact):
+            return url
+        assert isinstance(url, str), f'{url} should be a string'
+        parsed = urlparse(url)
+        if parsed.scheme == 's3':
+            path = os.path.join(self.s3_prefix, parsed.path.lstrip('/'))
+            return dflow.S3Artifact(key=path)
+        else:
+            raise ValueError(f'unsupported url {url}')
 
 def _filter_pyc_files(tarinfo):
     if tarinfo.name.endswith('.pyc') or tarinfo.name.endswith('__pycache__'):
