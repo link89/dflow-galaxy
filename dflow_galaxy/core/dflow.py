@@ -343,7 +343,8 @@ class DFlowBuilder:
                 if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
                     parameters[f.name] = v
                 elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-                    artifacts[f.name] = dflow.InputArtifact(source=self._s3_parse_url(v))  # type: ignore
+                    # artifacts[f.name] = dflow.InputArtifact(source=self._s3_parse_url(v))  # type: ignore
+                    template.inputs.artifacts[f.name].source = self._s3_parse_url(v)  # type: ignore
                 elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
                     template.outputs.artifacts[f.name].save = [self._s3_parse_url(v)]  # type: ignore
 
