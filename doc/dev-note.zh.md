@@ -34,6 +34,33 @@ DFlowBuilder 将是一个类型友好的 DFlow 封装，它将提供类型安全
 该封装将只使用 dflow ScriptOpTemplate 以最小化对 dflow 的依赖。
 
 
+### 代码设计
+Argo Workflow 包含 parameter 和 artifact 两种输入类型。
+其中 parameter 即一般数据， 作用相当于纯函数的输入输出，
+artifact 则用于表示文件副作用，相当于 ctx。
+
+因此为与之对应，一个基本的设计单元应该具备如下形式
+
+```python
+def operator(in_params, ctx) -> out_params:
+    ...
+```
+
+其中 ctx 包含所有的 input artifact 和 output artifact,
+in_params 和 out_params 分别对应于 input parameter 和 output parameter.
+
+上述3种数据类型均采用 dataclass 表达，且 in_params 和 out_params 均为 frozen=True。
+
+使用元编程进行argo 配置生成可借助 Annotated 实现。
+
+既然借助 Annotated, 那么区分 in_params 与 ctx 也就没有必要了，因此可以简化为
+```python
+def operator(args: Args) -> Result:
+    ...
+```
+其中 Args = InputParams + InputArtifact + OutputArtifact, Result = OutputParams
+
+
 ## DPGEN 工作流重构
 
 
@@ -80,32 +107,6 @@ DPGEN 工作流包含4个阶段的迭代: label, train, explore, select。
 {s3_prefix}/.dflow/python/fn/{hash}.py
 ```
 
-### 代码设计
-
-#### 基本结构
-Argo Workflow 包含 parameter 和 artifact 两种输入类型。
-其中 parameter 即一般数据， 作用相当于纯函数的输入输出，
-artifact 则用于表示文件副作用，相当于 ctx。
-
-因此为与之对应，一个基本的设计单元应该具备如下形式
-
-```python
-def operator(in_params, ctx) -> out_params:
-    ...
-```
-
-其中 ctx 包含所有的 input artifact 和 output artifact,
-in_params 和 out_params 分别对应于 input parameter 和 output parameter.
-
-上述3种数据类型均采用 dataclass 表达，且 in_params 和 out_params 均为 frozen=True。
-
-使用元编程进行argo 配置生成可借助 Annotated 实现。
-
-既然借助 Annotated, 那么区分 in_params 与 ctx 也就没有必要了，因此可以简化为
-```python
-def operator(input: Params) -> Output:
-    ...
-```
 
 #### 约定管理
 由于 DFlow 是基于约定的设计，因此需要采用一个中心化的方式对约定进行管理。

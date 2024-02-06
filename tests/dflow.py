@@ -102,5 +102,23 @@ class TestLib(unittest.TestCase):
         dflow.python_build_template(foo, base_dir='/tmp/dflow-galaxy')
         dflow.python_build_template(foo2, base_dir='/tmp/dflow-galaxy')
 
+    def test_bash_build_template(self):
+
+        @dataclass(frozen=True)
+        class FooArgs:
+            x: dflow.InputParam[int]
+            y: dflow.InputArtifact
+            z: dflow.OutputArtifact
+
+        def foo(args: FooArgs):
+            return f'''\
+echo "{args.x}"
+echo "{args.y}"
+echo "{args.z}"
+'''
+        ret = dflow.bash_build_template(foo, base_dir='/tmp/dflow-galaxy')
+        print(ret.source)
+
+
 if __name__ == '__main__':
     unittest.main()
