@@ -89,8 +89,6 @@ class TestLib(unittest.TestCase):
             return FooOutput(input.x)
 
         ret = dflow.python_build_template(foo, base_dir='/tmp/dflow-galaxy')
-        print(ret.source)
-        print(ret.fn_str)
 
     def test_argo_script_without_return(self):
         @dataclass(frozen=True)

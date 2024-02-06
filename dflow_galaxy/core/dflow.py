@@ -39,6 +39,8 @@ InputArtifact = Annotated[str, Symbol.INPUT_ARTIFACT]
 OutputParam = Annotated[T, Symbol.OUTPUT_PARAMETER]
 OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 
+DFLOW_ARTIFACT = Union[str, dflow.S3Artifact, dflow.OutputArtifact, dflow.InputArtifact]
+
 
 class Step(Generic[T_IN, T_OUT]):
     def __init__(self, df_step: dflow.Step):
@@ -138,6 +140,7 @@ def python_build_template(py_fn: Callable,
     args_file = os.path.join(fn_dir, 'args.json')
     script_path = os.path.join(fn_dir, 'script.py')
     output_parameters_dir = os.path.join(base_dir, 'output-parameters')
+    output_artifacts_dir = os.path.join(base_dir, 'output-artifacts')
 
     dflow_input_parameters: Dict[str, dflow.InputParameter] = {}
     dflow_input_artifacts: Dict[str, dflow.InputArtifact] = {}
@@ -152,9 +155,11 @@ def python_build_template(py_fn: Callable,
         f'args_file = {repr(args_file)}',
         f'script_path = {repr(script_path)}',
         f'output_parameters_dir = {repr(output_parameters_dir)}',
+        f'output_artifacts_dir = {repr(output_artifacts_dir)}',
         'os.makedirs(fn_dir, exist_ok=True)',
         'os.makedirs(pkg_dir, exist_ok=True)',
         'os.makedirs(output_parameters_dir, exist_ok=True)',
+        'os.makedirs(output_artifacts_dir, exist_ok=True)',
         'args = dict()',
     ]
 
@@ -172,10 +177,9 @@ def python_build_template(py_fn: Callable,
             dflow_input_artifacts[f.name] = dflow.InputArtifact(path=path)
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
         elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
-            path = os.path.join(base_dir, 'output-artifacts', f.name)
+            path = os.path.join(output_artifacts_dir, f.name)
             dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
-            source.append(f'os.makedirs(os.path.dirname(args[{repr(f.name)}]), exist_ok=True)')
 
     source.extend([
         '',
@@ -343,8 +347,7 @@ class DFlowBuilder:
                 if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
                     parameters[f.name] = v
                 elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-                    # artifacts[f.name] = dflow.InputArtifact(source=self._s3_parse_url(v))  # type: ignore
-                    template.inputs.artifacts[f.name].source = self._s3_parse_url(v)  # type: ignore
+                    artifacts[f.name] = self._s3_parse_url(v)  # type: ignore
                 elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
                     template.outputs.artifacts[f.name].save = [self._s3_parse_url(v)]  # type: ignore
 
@@ -403,14 +406,15 @@ class DFlowBuilder:
     def _s3_get_key(self, *keys: str):
         return os.path.join(self.s3_prefix, *keys)
 
-    def _s3_parse_url(self, url: Union[str, dflow.OutputArtifact, dflow.S3Artifact]) -> Union[str, dflow.OutputArtifact, dflow.S3Artifact]:
-        if isinstance(url, dflow.OutputArtifact) or isinstance(url, dflow.S3Artifact):
+    def _s3_parse_url(self, url: DFLOW_ARTIFACT) -> DFLOW_ARTIFACT:
+        if not isinstance(url, str):
             return url
-        assert isinstance(url, str), f'{url} should be a string'
         parsed = urlparse(url)
         if parsed.scheme == 's3':
-            path = os.path.join(self.s3_prefix, parsed.path.lstrip('/'))
-            return dflow.S3Artifact(key=path)
+            key = os.path.join(self.s3_prefix, parsed.path.lstrip('/'))
+            if self._debug:
+                key = os.path.abspath(key)
+            return dflow.S3Artifact(key=key)
         else:
             raise ValueError(f'unsupported url {url}')
 
