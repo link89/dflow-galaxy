@@ -8,6 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8"
 pydflow = "^1.8.46"
+fire = "^0.5.0"
+pydantic = "^2.6.1"
 
 
 [build-system]
