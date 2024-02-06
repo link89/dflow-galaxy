@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-pydflow = "^1.8.45"
+pydflow = "^1.8.46"
 
 
 [build-system]

@@ -72,12 +72,13 @@ def main():
 
     # build and run workflow
     dflow_builder = dflow.DFlowBuilder('square-sum', s3_prefix='s3/square-sum', debug=True)
+
     fan_out_step = dflow_builder.make_python_step(fan_out)(FanOutArgs(num=10,
-                                                                       output_dir='s3:///fanout'))
+                                                                      output_dir='s3:///fanout'))
     square_step = dflow_builder.make_python_step(square)(SquareArgs(input_dir=fan_out_step.args.output_dir,
-                                                                     output_dir='s3:///square'))
+                                                                    output_dir='s3:///square'))
     fan_in_step = dflow_builder.make_python_step(fan_in)(FanInArgs(input_dir=square_step.args.output_dir,
-                                                                   result_file='s3:////result.txt'))
+                                                                   result_file='s3:///result.txt'))
     show_step = dflow_builder.make_bash_step(show)(ShowArgs(result_file=fan_in_step.args.result_file))
 
     dflow_builder.add_step(fan_out_step)
@@ -88,4 +89,3 @@ def main():
     dflow_builder.run()
 
 main()
-
