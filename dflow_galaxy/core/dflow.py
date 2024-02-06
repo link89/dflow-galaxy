@@ -2,8 +2,8 @@ from dflow.op_template import ScriptOPTemplate
 import dflow
 
 from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Generic, Dict, Any, Iterable
-from dataclasses import fields, is_dataclass, asdict
-from urllib.parse import urlparse, parse_qs
+from dataclasses import fields, is_dataclass
+from urllib.parse import urlparse
 from collections import namedtuple
 from enum import IntEnum, auto
 from pathlib import Path
@@ -55,6 +55,8 @@ class Step(Generic[T_IN, T_OUT]):
     @property
     def outputs(self) -> T_OUT:
         return ObjProxy(self.df_step.outputs.parameters)  # type: ignore
+
+Steps = Union[Step, Iterable['Steps']]
 
 
 class ObjProxy:
@@ -270,23 +272,6 @@ class DFlowBuilder:
         self._s3_debug_fn = s3_debug_fn
         self._debug = debug
 
-    def add_python_pkg(self, pkg: str):
-        """
-        Add a python package to the workflow.
-        """
-        # Find the path of target package,
-        # then create a temporary tarball and upload it to s3
-
-        if pkg not in self._python_pkgs:
-            pkg_path = os.path.dirname(__import__(pkg).__file__)
-            with tempfile.NamedTemporaryFile(suffix='.tar.bz2') as fp:
-                with tarfile.open(fp.name, 'w:bz2') as tar_fp:
-                    tar_fp.add(pkg_path, arcname=os.path.basename(pkg_path), filter=_filter_pyc_files)
-                fp.flush()
-                key = self.s3_upload(Path(fp.name), 'build-in/python/pkg', f'{pkg}.tar.bz2')
-                logger.info(f'upload {pkg} to {key}')
-                self._python_pkgs[pkg] = key
-        return self._python_pkgs[pkg]
 
     def s3_upload(self, path: os.PathLike, *keys: str) -> str:
         """
@@ -311,7 +296,23 @@ class DFlowBuilder:
             fp.flush()
             return self.s3_upload(Path(fp.name), *keys)
 
+    def add_step(self, step: Step):
+        """
+        Add a step to the workflow.
+        """
+        self.workflow.add(step.df_step)
+
+    def add_steps(self, steps: Steps):
+        """
+        Add a list of steps to the workflow. The steps will be executed in parallel.
+        """
+        df_steps = _to_dflow_steps(steps)
+        self.workflow.add(df_steps)
+
     def run(self):
+        """
+        Run the workflow.
+        """
         self.workflow.submit()
         self.workflow.wait()
 
@@ -325,8 +326,9 @@ class DFlowBuilder:
         Make a python step.
 
         :param fn: The python function to run in the step.
-        :param with_param: The parameter to pass to the step
+        :param with_param: The parameter to pass to the step.
         :param uid: The unique id of the step.
+        :param pkgs: The python packages to install in the step.
         :return: A function to run the step.
 
         Due to the design flaw of the Argo Workflow that the s3 key cannot be set as step arguments,
@@ -389,7 +391,7 @@ class DFlowBuilder:
         )
         # download python packages
         for pkg in pkgs:
-            key = self.add_python_pkg(pkg)
+            key = self._add_python_pkg(pkg)
             dflow_template.inputs.artifacts[pkg] = dflow.InputArtifact(
                 source=dflow.S3Artifact(key=key),
                 path=os.path.join(_template.pkg_dir, f'{pkg}.tar.bz2'),
@@ -402,6 +404,24 @@ class DFlowBuilder:
             logger.info(f'upload {fn} to {fn_prefix}')
             self._python_fns[fn] = fn_prefix
         return self._python_fns[fn]
+
+    def _add_python_pkg(self, pkg: str):
+        """
+        Add a python package to the workflow.
+        """
+        # Find the path of target package,
+        # then create a temporary tarball and upload it to s3
+
+        if pkg not in self._python_pkgs:
+            pkg_path = os.path.dirname(__import__(pkg).__file__)
+            with tempfile.NamedTemporaryFile(suffix='.tar.bz2') as fp:
+                with tarfile.open(fp.name, 'w:bz2') as tar_fp:
+                    tar_fp.add(pkg_path, arcname=os.path.basename(pkg_path), filter=_filter_pyc_files)
+                fp.flush()
+                key = self.s3_upload(Path(fp.name), 'build-in/python/pkg', f'{pkg}.tar.bz2')
+                logger.info(f'upload python pkg {pkg} to {key}')
+                self._python_pkgs[pkg] = key
+        return self._python_pkgs[pkg]
 
     def _s3_get_key(self, *keys: str):
         return os.path.join(self.s3_prefix, *keys)
@@ -418,7 +438,14 @@ class DFlowBuilder:
         else:
             raise ValueError(f'unsupported url {url}')
 
+
 def _filter_pyc_files(tarinfo):
     if tarinfo.name.endswith('.pyc') or tarinfo.name.endswith('__pycache__'):
         return None
     return tarinfo
+
+
+def _to_dflow_steps(steps: Steps):
+    if isinstance(steps, Step):
+        return steps.df_step
+    return [_to_dflow_steps(step) for step in steps]
