@@ -28,7 +28,6 @@ DFlow 的 PythonOP 在设计时没有规避Argo的设计缺陷，导致了很多
 在该功能就位之前，可以通过分组 prefix 来实现类似的功能。
 
 
-
 为了解决上述问题，我将创建一个 DFlowBuilder 对 dflow 模块进行隔离，该模块将提供一种更符合直觉的方式来构建工作流。
 
 DFlowBuilder 将是一个类型友好的 DFlow 封装，它将提供类型安全的 Python 和 bash 脚本构建工具。
