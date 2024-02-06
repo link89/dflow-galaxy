@@ -118,7 +118,6 @@ echo "{args.z}"
 '''
         ret = dflow.bash_build_template(foo, base_dir='/tmp/dflow-galaxy')
         print(ret.source)
-        print(ret.args)
 
 
 if __name__ == '__main__':

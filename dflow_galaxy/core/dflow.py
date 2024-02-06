@@ -24,8 +24,8 @@ logger = get_logger(__name__)
 
 
 T = TypeVar('T')
-T_IN = TypeVar('T_IN')
-T_OUT = TypeVar('T_OUT')
+T_ARGS = TypeVar('T_ARGS')
+T_RESULT = TypeVar('T_RESULT')
 
 
 class Symbol(IntEnum):
@@ -43,18 +43,18 @@ OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 DFLOW_ARTIFACT = Union[str, dflow.S3Artifact, dflow.OutputArtifact, dflow.InputArtifact]
 
 
-class Step(Generic[T_IN, T_OUT]):
+class Step(Generic[T_ARGS, T_RESULT]):
     def __init__(self, df_step: dflow.Step):
         self.df_step = df_step
 
     @property
-    def args(self) -> T_IN:
+    def args(self) -> T_ARGS:
         return ObjProxy(self.df_step.inputs.parameters,
                         self.df_step.inputs.artifacts,
                         self.df_step.outputs.artifacts)  # type: ignore
 
     @property
-    def result(self) -> T_OUT:
+    def result(self) -> T_RESULT:
         return ObjProxy(self.df_step.outputs.parameters)  # type: ignore
 
 Steps = Union[Step, Iterable['Steps']]
@@ -66,10 +66,10 @@ class ObjProxy:
 
     def __getattr__(self, name):
         for obj in self.objs:
-            if hasattr(obj, name):
-                return getattr(obj, name)
-            elif name in obj:
+            if name in obj:
                 return obj[name]
+            elif hasattr(obj, name):
+                return getattr(obj, name)
         raise AttributeError(f'{name} not found in {self.objs}')
 
 
@@ -120,7 +120,7 @@ def iter_python_step_return(obj):
         yield f, getattr(obj, f.name, None)
 
 
-_BashTemplate = namedtuple('_BashStep', ['source', 'args', 'script_path',
+_BashTemplate = namedtuple('_BashStep', ['source',
                                          'dflow_input_parameters',
                                          'dflow_input_artifacts',
                                          'dflow_output_artifacts',
@@ -137,10 +137,9 @@ def bash_build_template(py_fn: Callable,
     assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
     args_type = sig.parameters[next(iter(sig.parameters))].annotation
     return_type  = sig.return_annotation
-    assert return_type is inspect.Signature.empty or return_type is None, 'bash step should not have return value'
 
-    bash_dir = os.path.join(base_dir, 'bash')
-    script_path = os.path.join(bash_dir, 'script.sh')
+    assert return_type is str, 'bash step should return a string'
+
     input_artifacts_dir = os.path.join(base_dir, 'input-artifacts')
     output_artifacts_dir = os.path.join(base_dir, 'output-artifacts')
 
@@ -154,7 +153,6 @@ def bash_build_template(py_fn: Callable,
         '#!/bin/bash',
         'set -e',
         '',
-        f'mkdir -p {shlex.quote(bash_dir)}',
         f'mkdir -p {shlex.quote(output_artifacts_dir)}',
         '',
         '# Setup Variables',
@@ -185,14 +183,14 @@ def bash_build_template(py_fn: Callable,
             args_dict[f.name] = f'${bash_name}'
 
     source.extend([
-        '# Run the real bash script',
-        f'source {shlex.quote(script_path)}',
+        '',
+        '#' * 80,
+        '',
+        py_fn(ObjProxy(args_dict)),
     ])
 
     _dflow_script_check(source, base_dir)
     return _BashTemplate(source='\n'.join(source),
-                         args=args_dict,
-                         script_path=script_path,
                          dflow_input_parameters=dflow_input_parameters,
                          dflow_input_artifacts=dflow_input_artifacts,
                          dflow_output_artifacts=dflow_output_artifacts)
@@ -399,18 +397,46 @@ class DFlowBuilder:
         self.workflow.submit()
         self.workflow.wait()
 
+    def make_bash_step(self,
+                       fn: Callable[[T_ARGS], str],
+                       with_param: Any = None,
+                       ) -> Callable[[T_ARGS], Step[T_ARGS, None]]:
+        """
+        Make a bash step from python function.
+
+        :param fn: The python function to generate the bash script.
+        :param with_param: The parameter to pass to the step.
+        :return: A function to run the step.
+        """
+        uid = str(uuid4())
+        def wrapped_fn(args: T_ARGS):
+            template = self._create_bash_template(fn, uid=uid)
+            return self._build_step('bash-step-' + uid, args, template, with_param)
+        return wrapped_fn
+
+    def _create_bash_template(self, fn: Callable, uid: str,
+                              bash_cmd: str = 'bash',):
+        _template = bash_build_template(fn, base_dir=self.container_base_dir)
+        dflow_template = ScriptOPTemplate(
+            name='bash-template-' + uid,
+            command=bash_cmd,
+            script=_template.source,
+        )
+        dflow_template.inputs.parameters = _template.dflow_input_parameters
+        dflow_template.inputs.artifacts = _template.dflow_input_artifacts
+        dflow_template.outputs.artifacts = _template.dflow_output_artifacts
+        return dflow_template
+
     def make_python_step(self,
-                         fn: Callable[[T_IN], T_OUT],
+                         fn: Callable[[T_ARGS], T_RESULT],
                          with_param: Any = None,
-                         uid: Optional[str] = None,
                          pkgs: Optional[Iterable[str]] = None,
-                         ) -> Callable[[T_IN], Step[T_IN, T_OUT]]:
+                         ) -> Callable[[T_ARGS], Step[T_ARGS, T_RESULT]]:
         """
         Make a python step.
 
         :param fn: The python function to run in the step.
         :param with_param: The parameter to pass to the step.
-        :param uid: The unique id of the step.
         :param pkgs: The python packages to install in the step.
         :return: A function to run the step.
 
@@ -418,41 +444,20 @@ class DFlowBuilder:
         for each step a dedicated template have to be created.
         Ref: https://github.com/argoproj/argo-workflows/discussions/12606#discussioncomment-8358302
         """
-        if uid is None:
-            uid = str(uuid4())
+        uid = str(uuid4())
         if pkgs is None:
             pkgs = ['dflow_galaxy']
 
-        template = self._create_python_template(fn, uid=uid, pkgs=pkgs)
-        def wrapped_fn(in_params: T_IN):
-            parameters = {}
-            artifacts = {}
+        def wrapped_fn(args: T_ARGS):
+            template = self._create_python_template(fn, uid=uid, pkgs=pkgs)
+            return self._build_step('python-step-' + uid, args, template, with_param)
 
-            for f, v in iter_python_step_args(in_params):
-                if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
-                    parameters[f.name] = v
-                elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-                    artifacts[f.name] = self._s3_parse_url(v)  # type: ignore
-                elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
-                    template.outputs.artifacts[f.name].save = [self._s3_parse_url(v)]  # type: ignore
-
-            step = dflow.Step(
-                name='python-step-' + uid,
-                template=template,
-                with_param=with_param,
-                parameters=parameters,
-                artifacts=artifacts,
-            )
-            return Step(step)
         return wrapped_fn
 
-    def _create_python_template(self, fn: Callable,
-                                uid: Optional[str] = None,
+    def _create_python_template(self, fn: Callable, uid: str,
                                 python_cmd: str = 'python3',
                                 pkgs: Optional[Iterable[str]] = None,
                                 ):
-        if uid is None:
-            uid = str(uuid4())
         if pkgs is None:
             pkgs = []
         _template = python_build_template(fn, base_dir=self.container_base_dir)
@@ -520,6 +525,26 @@ class DFlowBuilder:
             return dflow.S3Artifact(key=key)
         else:
             raise ValueError(f'unsupported url {url}')
+
+    def _build_step(self, name: str, args: T_ARGS, template, with_param: Any=None):
+        parameters = {}
+        artifacts = {}
+        for f, v in iter_python_step_args(args):
+            if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
+                parameters[f.name] = v
+            elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
+                artifacts[f.name] = self._s3_parse_url(v)  # type: ignore
+            elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
+                template.outputs.artifacts[f.name].save = [self._s3_parse_url(v)]  # type: ignore
+        step = dflow.Step(
+            name=name,
+            template=template,
+            with_param=with_param,
+            parameters=parameters,
+            artifacts=artifacts,
+        )
+        return Step(step)
+
 
 
 def _filter_pyc_files(tarinfo):
