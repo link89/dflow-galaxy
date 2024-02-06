@@ -15,6 +15,7 @@ import hashlib
 import inspect
 import base64
 import shutil
+import shlex
 import bz2
 import os
 
@@ -119,11 +120,80 @@ def iter_python_step_return(obj):
         yield f, getattr(obj, f.name, None)
 
 
+_BashTemplate = namedtuple('_BashStep', ['source', 'args', 'script_path',
+                                         'dflow_input_parameters',
+                                         'dflow_input_artifacts',
+                                         'dflow_output_artifacts',
+                                         ])
+
+
 def bash_build_template(py_fn: Callable,
-                        base_dir: str):
+                        base_dir: str,
+                        eof_flag: str = 'EOF') -> _BashTemplate:
     """
     build bash step from a python function
     """
+    sig = inspect.signature(py_fn)
+    assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
+    args_type = sig.parameters[next(iter(sig.parameters))].annotation
+    return_type  = sig.return_annotation
+    assert return_type is inspect.Signature.empty or return_type is None, 'bash step should not have return value'
+
+    bash_dir = os.path.join(base_dir, 'bash')
+    script_path = os.path.join(bash_dir, 'script.sh')
+    input_artifacts_dir = os.path.join(base_dir, 'input-artifacts')
+    output_artifacts_dir = os.path.join(base_dir, 'output-artifacts')
+
+    dflow_input_parameters: Dict[str, dflow.InputParameter] = {}
+    dflow_input_artifacts: Dict[str, dflow.InputArtifact] = {}
+    dflow_output_artifacts: Dict[str, dflow.OutputArtifact] = {}
+
+    args_dict = {}
+
+    source = [
+        '#!/bin/bash',
+        'set -e',
+        '# Build input variables',
+        f'mkdir -p {shlex.quote(bash_dir)}',
+        f'mkdir -p {shlex.quote(output_artifacts_dir)}',
+    ]
+
+    for f, v in iter_python_step_args(args_type):
+        if f.type.__metadata__[0] == Symbol.INPUT_PARAMETER:
+            # input parameter can be a multiline string
+            bash_name = f'_DF_INPUT_PARAMETER_{f.name}_'
+            source.extend([
+                f"read -r -d '' {bash_name} << '{eof_flag}'",
+                f"{{{{inputs.parameters.{f.name}}}}}",
+                eof_flag,
+            ])
+            dflow_input_parameters[f.name] = dflow.InputParameter(name=f.name)
+            args_dict[f.name] = f'${bash_name}'
+        elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
+            bash_name = f'_DF_INPUT_ARTIFACT_{f.name}_'
+            path = os.path.join(input_artifacts_dir, f.name)
+            source.append(f'{bash_name}={shlex.quote(path)}')
+            dflow_input_artifacts[f.name] = dflow.InputArtifact(path=path)
+            args_dict[f.name] = f'${bash_name}'
+        elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
+            bash_name = f'_DF_OUTPUT_ARTIFACT_{f.name}_'
+            path = os.path.join(output_artifacts_dir, f.name)
+            source.append(f'{bash_name}={shlex.quote(path)}')
+            dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=Path(path))
+            args_dict[f.name] = f'${bash_name}'
+
+    source.extend([
+        '# Run the real bash script',
+        f'source {shlex.quote(script_path)}',
+    ])
+
+    _dflow_script_check(source, base_dir)
+    return _BashTemplate(source='\n'.join(source),
+                         args=args_dict,
+                         script_path=script_path,
+                         dflow_input_parameters=dflow_input_parameters,
+                         dflow_input_artifacts=dflow_input_artifacts,
+                         dflow_output_artifacts=dflow_output_artifacts)
 
 
 
@@ -151,6 +221,7 @@ def python_build_template(py_fn: Callable,
     args_file = os.path.join(fn_dir, 'args.json')
     script_path = os.path.join(fn_dir, 'script.py')
     output_parameters_dir = os.path.join(base_dir, 'output-parameters')
+    input_artifacts_dir = os.path.join(base_dir, 'input-artifacts')
     output_artifacts_dir = os.path.join(base_dir, 'output-artifacts')
 
     dflow_input_parameters: Dict[str, dflow.InputParameter] = {}
@@ -184,7 +255,7 @@ def python_build_template(py_fn: Callable,
             dflow_input_parameters[f.name] = dflow.InputParameter(name=f.name)
             source.append(f'args[{repr(f.name)}] = {val}')
         elif f.type.__metadata__[0] == Symbol.INPUT_ARTIFACT:
-            path = os.path.join(base_dir, 'input-artifacts', f.name)
+            path = os.path.join(input_artifacts_dir, f.name)
             dflow_input_artifacts[f.name] = dflow.InputArtifact(path=path)
             source.append(f'args[{repr(f.name)}] = {repr(path)}')
         elif f.type.__metadata__[0] == Symbol.OUTPUT_ARTIFACT:
@@ -194,6 +265,7 @@ def python_build_template(py_fn: Callable,
 
     source.extend([
         '',
+        '# dump args to file',
         'with open(args_file, "w") as fp:',
         '    json.dump(args, fp, indent=2)',
         '',
@@ -240,9 +312,7 @@ def python_build_template(py_fn: Callable,
             ])
         dflow_output_parameters[f.name] = dflow.OutputParameter(value_from_path=path)
 
-    for line in source:
-        assert '/tmp' not in line.replace(base_dir, ''), 'dflow: script should not contain unexpected /tmp literal'
-
+    _dflow_script_check(fn_str, base_dir)
     return _PythonTemplate(source='\n'.join(source),
                            fn_str='\n'.join(fn_str),
                            script_path=script_path,
@@ -258,7 +328,7 @@ class DFlowBuilder:
     A type friendly wrapper to build a DFlow workflow.
     """
 
-    def __init__(self, name:str, s3_prefix: str, base_dir: str = '/tmp/dflow-builder', debug=False, s3_debug_fn = shutil.copy):
+    def __init__(self, name:str, s3_prefix: str, debug=False, container_base_dir: str = '/tmp/dflow-builder', s3_debug_fn = shutil.copy):
         """
         :param name: The name of the workflow.
         :param s3_prefix: The base prefix of the S3 bucket to store data generated by the workflow.
@@ -270,14 +340,16 @@ class DFlowBuilder:
             dflow.config['mode'] = 'debug'
             s3_prefix = s3_prefix.lstrip('/')
 
-        assert base_dir.startswith('/tmp'), 'dflow: base_dir must be a subdirectory of /tmp'
+        assert container_base_dir.startswith('/tmp'), 'dflow: container_base_dir must be a subdirectory of /tmp'
 
         self.name: Final[str] = name
-        self.s3_prefix: Final[str] = s3_prefix
-        self.base_dir: Final[str] = base_dir
         self.workflow: Final[dflow.Workflow] = dflow.Workflow(name=name)
+        self.s3_prefix: Final[str] = s3_prefix
+        self.container_base_dir: Final[str] = container_base_dir
+
         self._python_fns: Dict[Callable, str] = {}
         self._python_pkgs: Dict[str, str] = {}
+        self._bash_scripts: Dict[Callable, str] = {}
         self._s3_debug_fn = s3_debug_fn
         self._debug = debug
 
@@ -381,7 +453,7 @@ class DFlowBuilder:
             uid = str(uuid4())
         if pkgs is None:
             pkgs = []
-        _template = python_build_template(fn, base_dir=self.base_dir)
+        _template = python_build_template(fn, base_dir=self.container_base_dir)
         fn_hash = hashlib.sha256(_template.fn_str.encode()).hexdigest()
         dflow_template = ScriptOPTemplate(
             name='python-template-' + uid,
@@ -458,3 +530,8 @@ def _to_dflow_steps(steps: Steps):
     if isinstance(steps, Step):
         return steps.df_step
     return [_to_dflow_steps(step) for step in steps]
+
+
+def _dflow_script_check(source: Iterable[str], base_dir):
+    for line in source:
+        assert '/tmp' not in line.replace(base_dir, ''), 'dflow: script should not contain unexpected /tmp literal'
