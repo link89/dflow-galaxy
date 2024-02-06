@@ -129,7 +129,7 @@ _BashTemplate = namedtuple('_BashStep', ['source', 'args', 'script_path',
 
 def bash_build_template(py_fn: Callable,
                         base_dir: str,
-                        eof_flag: str = 'EOF') -> _BashTemplate:
+                        eof: str = '__EOF__') -> _BashTemplate:
     """
     build bash step from a python function
     """
@@ -153,9 +153,11 @@ def bash_build_template(py_fn: Callable,
     source = [
         '#!/bin/bash',
         'set -e',
-        '# Build input variables',
+        '',
         f'mkdir -p {shlex.quote(bash_dir)}',
         f'mkdir -p {shlex.quote(output_artifacts_dir)}',
+        '',
+        '# Setup Variables',
     ]
 
     for f, v in iter_python_step_args(args_type):
@@ -163,9 +165,9 @@ def bash_build_template(py_fn: Callable,
             # input parameter can be a multiline string
             bash_name = f'_DF_INPUT_PARAMETER_{f.name}_'
             source.extend([
-                f"read -r -d '' {bash_name} << '{eof_flag}'",
+                f"read -r -d '' {bash_name} << {eof}",
                 f"{{{{inputs.parameters.{f.name}}}}}",
-                eof_flag,
+                eof,
             ])
             dflow_input_parameters[f.name] = dflow.InputParameter(name=f.name)
             args_dict[f.name] = f'${bash_name}'
