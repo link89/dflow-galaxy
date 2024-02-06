@@ -63,9 +63,9 @@ def main():
     dflow_builder = dflow.DFlowBuilder('square-sum', s3_prefix='s3/square-sum', debug=True)
     fanout_step = dflow_builder.make_python_step(fanout)(FanOutInput(num=10,
                                                                      output_dir='s3:///fanout'))
-    square_step = dflow_builder.make_python_step(square)(SquareInput(input_dir=fanout_step.inputs.output_dir,
+    square_step = dflow_builder.make_python_step(square)(SquareInput(input_dir=fanout_step.args.output_dir,
                                                                      output_dir='s3:///square'))
-    sum_step = dflow_builder.make_python_step(sum)(SumInput(square_step.inputs.output_dir))
+    sum_step = dflow_builder.make_python_step(sum)(SumInput(square_step.args.output_dir))
 
     dflow_builder.add_step(fanout_step)
     dflow_builder.add_step(square_step)

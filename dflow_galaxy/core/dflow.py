@@ -47,13 +47,13 @@ class Step(Generic[T_IN, T_OUT]):
         self.df_step = df_step
 
     @property
-    def inputs(self) -> T_IN:
+    def args(self) -> T_IN:
         return ObjProxy(self.df_step.inputs.parameters,
                         self.df_step.inputs.artifacts,
                         self.df_step.outputs.artifacts)  # type: ignore
 
     @property
-    def outputs(self) -> T_OUT:
+    def result(self) -> T_OUT:
         return ObjProxy(self.df_step.outputs.parameters)  # type: ignore
 
 Steps = Union[Step, Iterable['Steps']]
@@ -117,6 +117,15 @@ def iter_python_step_return(obj):
         assert hasattr(f.type, '__metadata__'), msg
         assert f.type.__metadata__ [0] == Symbol.OUTPUT_PARAMETER, msg
         yield f, getattr(obj, f.name, None)
+
+
+def bash_build_template(py_fn: Callable,
+                        base_dir: str):
+    """
+    build bash step from a python function
+    """
+
+
 
 
 _PythonTemplate = namedtuple('_PythonStep', ['source', 'fn_str', 'script_path', 'pkg_dir',
