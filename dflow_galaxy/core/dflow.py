@@ -22,6 +22,7 @@ import os
 from .log import get_logger
 logger = get_logger(__name__)
 
+from dflow.plugins.dispatcher import DispatcherExecutor
 
 T = TypeVar('T')
 T_ARGS = TypeVar('T_ARGS')

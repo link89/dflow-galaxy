@@ -7,7 +7,8 @@ Collection of workflows and tools built on top of DFlow.
 
 ## Features
 * DFlowBuilder: A type friendly wrapper for `DFlow` to build workflows in a more intuitive way.
-* DPGEN: (TODO) A workflow to train DeepMD model automatically.
+* Workflows:
+  * TESLA: a Train, Explore, Select, Label workflow designed by AI4EC lab. Get inspired by DPGEN, DPGEN2 and ai2-kit.
 
 ## Get Started
 
