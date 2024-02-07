@@ -585,3 +585,4 @@ def _to_dflow_steps(steps: Steps):
 def _dflow_script_check(source: Iterable[str], base_dir):
     for line in source:
         assert '/tmp' not in line.replace(base_dir, ''), 'dflow: script should not contain unexpected /tmp literal'
+        assert '"""' not in line, 'dflow: script should not contain """'

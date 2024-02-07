@@ -8,7 +8,7 @@ import os
 
 
 class ResourcePlan(BaseModel):
-    queue: str
+    queue: Optional[str] = None
     container: Optional[str] = None
     work_dir: str = '.'
     nodes: int = 1
@@ -70,11 +70,11 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
     url = urlparse(config.url)
     assert url.scheme == 'ssh', 'Only SSH is supported for HPC dispatcher'
     assert url.username, 'Username is required in the URL'
-    remote_root = os.path.join(config.base_dir, resource_plan.work_dir)
+    assert os.path.isabs(config.base_dir), 'Base directory must be an absolute path'
+    remote_root = os.path.normpath(
+        os.path.join(config.base_dir, resource_plan.work_dir))
 
-    remote_profile = {
-        'context_type': config.get_context_type(),
-    }
+    remote_profile = { }
     if config.key_file:
         remote_profile['key_filename'] = config.key_file
     resource_dict = {
@@ -82,6 +82,8 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
         'cpu_per_node': resource_plan.cpus_per_node,
     }
     machine_dict = {
+        "batch_type": config.get_context_type(),
+        "context_type": "SSHContext",
         'remote_profile': remote_profile,
     }
 
