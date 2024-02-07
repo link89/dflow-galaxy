@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
 from dataclasses import dataclass
-from dflow_galaxy.core import dflow
+from dflow_galaxy.core import dflow, types
 from dflow_galaxy.core.util import ensure_dirname, ensure_dir
 
 
@@ -13,8 +13,8 @@ def main():
 
     @dataclass(frozen=True)
     class FanOutArgs:
-        num: dflow.InputParam[int]
-        output_dir: dflow.OutputArtifact
+        num: types.InputParam[int]
+        output_dir: types.OutputArtifact
 
     def fan_out(args: FanOutArgs):
         """
@@ -29,8 +29,8 @@ def main():
 
     @dataclass(frozen=True)
     class SquareArgs:
-        input_dir : dflow.InputArtifact
-        output_dir: dflow.OutputArtifact
+        input_dir : types.InputArtifact
+        output_dir: types.OutputArtifact
 
     def square(args: SquareArgs):
         """
@@ -46,8 +46,8 @@ def main():
 
     @dataclass(frozen=True)
     class FanInArgs:
-        input_dir : dflow.InputArtifact
-        result_file: dflow.OutputArtifact
+        input_dir : types.InputArtifact
+        result_file: types.OutputArtifact
 
     def fan_in(args: FanInArgs):
         """
@@ -64,7 +64,7 @@ def main():
 
     @dataclass(frozen=True)
     class ShowArgs:
-        result_file: dflow.InputArtifact
+        result_file: types.InputArtifact
 
     def show(args: ShowArgs) -> str:
         return f"cat {args.result_file}"
