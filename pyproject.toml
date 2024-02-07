@@ -6,7 +6,7 @@ authors = ["weihong.xu <xuweihong.cn@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 pydflow = "^1.8.46"
 fire = "^0.5.0"
 pydantic = "^2.6.1"

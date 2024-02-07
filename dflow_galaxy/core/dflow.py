@@ -168,7 +168,7 @@ def bash_build_template(py_fn: Callable,
             bash_name = f'_DF_OUTPUT_ARTIFACT_{f.name}_'
             path = os.path.join(output_artifacts_dir, f.name)
             source.append(f'{bash_name}={shlex.quote(path)}')
-            dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=path)  
+            dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=path)  # type: ignore
             args_dict[f.name] = f'${bash_name}'
 
     source.extend([
