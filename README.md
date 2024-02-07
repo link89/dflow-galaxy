@@ -11,6 +11,7 @@ Collection of workflows and tools built on top of DFlow.
   * TESLA: a Train, Explore, Select, Label workflow designed by AI4EC lab. Get inspired by DPGEN, DPGEN2 and ai2-kit.
 
 ## Get Started
+`dflow-galaxy` requires Python 3.9+ since it depends on `typing.Annotated` and `PEP 585`.
 
 To use `dflow-galaxy` as a library, you can install it via pip:
 
