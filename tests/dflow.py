@@ -110,7 +110,7 @@ class TestLib(unittest.TestCase):
             y: dflow.InputArtifact
             z: dflow.OutputArtifact
 
-        def foo(args: FooArgs):
+        def foo(args: FooArgs) -> str:
             return f'''\
 echo "{args.x}"
 echo "{args.y}"
