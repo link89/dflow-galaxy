@@ -206,7 +206,9 @@ _PythonTemplate = namedtuple('_PythonStep', ['source', 'fn_str', 'script_path', 
 
 
 def python_build_template(py_fn: Callable,
-                          base_dir: str) -> _PythonTemplate:
+                          base_dir: str,
+                          python_cmd: str = 'python3',
+                          eof: str = '__EOF__') -> _PythonTemplate:
     """
     build python template from a python function
     """
@@ -229,6 +231,9 @@ def python_build_template(py_fn: Callable,
     dflow_output_parameters: Dict[str, dflow.OutputParameter] = {}
 
     source = [
+        '#!/bin/bash',
+        '',
+        f'{python_cmd}  << {eof}',
         'import os, json, tarfile',
         f'base_dir = {repr(base_dir)}',
         f'fn_dir = {repr(fn_dir)}',
@@ -277,6 +282,8 @@ def python_build_template(py_fn: Callable,
         '# insert pkg_dir to PYTHONPATH',
         'os.environ["PYTHONPATH"] = pkg_dir + ":" + os.environ.get("PYTHONPATH", "")',
         'os.system(f"python {script_path} {args_file}")',
+        '',
+        eof,
     ])
 
     fn_str = [
@@ -470,15 +477,16 @@ class DFlowBuilder:
 
     def _create_python_template(self, fn: Callable, uid: str,
                                 python_cmd: str = 'python3',
+                                bash_cmd: str = 'bash',
                                 pkgs: Optional[Iterable[str]] = None,
                                 ):
         if pkgs is None:
             pkgs = []
-        _template = python_build_template(fn, base_dir=self.container_base_dir)
+        _template = python_build_template(fn, base_dir=self.container_base_dir, python_cmd=python_cmd)
         fn_hash = hashlib.sha256(_template.fn_str.encode()).hexdigest()
         dflow_template = ScriptOPTemplate(
             name='python-template-' + uid,
-            command=python_cmd,
+            command=bash_cmd,
             script=_template.source,
         )
         dflow_template.inputs.parameters = _template.dflow_input_parameters
