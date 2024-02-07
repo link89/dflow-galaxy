@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
 from dataclasses import dataclass
-from dflow_galaxy.core import dflow
+from dflow_galaxy.core import dflow, types, dispatcher
 from dflow_galaxy.core.util import ensure_dirname, ensure_dir
 
 
@@ -13,8 +13,8 @@ def main():
 
     @dataclass(frozen=True)
     class FanOutArgs:
-        num: dflow.InputParam[int]
-        output_dir: dflow.OutputArtifact
+        num: types.InputParam[int]
+        output_dir: types.OutputArtifact
 
     def fan_out(args: FanOutArgs):
         """
@@ -29,8 +29,8 @@ def main():
 
     @dataclass(frozen=True)
     class SquareArgs:
-        input_dir : dflow.InputArtifact
-        output_dir: dflow.OutputArtifact
+        input_dir : types.InputArtifact
+        output_dir: types.OutputArtifact
 
     def square(args: SquareArgs):
         """
@@ -46,8 +46,8 @@ def main():
 
     @dataclass(frozen=True)
     class FanInArgs:
-        input_dir : dflow.InputArtifact
-        result_file: dflow.OutputArtifact
+        input_dir : types.InputArtifact
+        result_file: types.OutputArtifact
 
     def fan_in(args: FanInArgs):
         """
@@ -64,14 +64,34 @@ def main():
 
     @dataclass(frozen=True)
     class ShowArgs:
-        result_file: dflow.InputArtifact
+        result_file: types.InputArtifact
 
     def show(args: ShowArgs) -> str:
         return f"cat {args.result_file}"
 
+    extra_kwargs = {}
+
+    # run on HPC
+    use_hpc = False
+    if use_hpc:
+        # HPC configuration
+        hpc_config = dispatcher.HpcConfig(
+            url='ssh://whxu@ai4ec-hpc',
+            base_dir='/data/home/whxu/tmp/dflow-galaxy',
+            slurm=dispatcher.HpcConfig.SlurmConfig(),
+        )
+        resource_plan = dispatcher.ResourcePlan(
+            queue='c52-small',
+            work_dir='./square-sum',
+            nodes=1,
+            cpus_per_node=1,
+        )
+        executor = dispatcher.create_hpc_dispatcher(hpc_config, resource_plan)
+        extra_kwargs['default_executor'] = executor
 
     # build and run workflow
-    dflow_builder = dflow.DFlowBuilder('square-sum', s3_prefix='s3/square-sum', debug=True)
+    dflow_builder = dflow.DFlowBuilder('square-sum', s3_prefix='s3/square-sum',
+                                       debug=True, **extra_kwargs)
 
     fan_out_step = dflow_builder.make_python_step(fan_out)(FanOutArgs(num=10,
                                                                       output_dir='s3:///fanout'))

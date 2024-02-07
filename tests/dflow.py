@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import unittest
 
-from dflow_galaxy.core import dflow
+from dflow_galaxy.core import dflow, types
+
 import dflow as _dflow
 from dflow.op_template import ScriptOPTemplate
 
@@ -33,26 +34,26 @@ class TestLib(unittest.TestCase):
     def test_valid_python_step_input(self):
         @dataclass(frozen=True)
         class Foo:
-            x: dflow.InputParam[int]
-            y: dflow.InputArtifact
-            z: dflow.OutputArtifact
+            x: types.InputParam[int]
+            y: types.InputArtifact
+            z: types.OutputArtifact
         foo = Foo(1, '2', '3')
         list(dflow.iter_python_step_args(foo))
 
     def test_invalid_python_step_input(self):
         @dataclass(frozen=True)
         class Foo:
-            x: dflow.InputParam[int]
-            y: dflow.InputArtifact
-            z: dflow.OutputArtifact
+            x: types.InputParam[int]
+            y: types.InputArtifact
+            z: types.OutputArtifact
             e: int
 
         @dataclass(frozen=True)
         class Bar:
-            x: dflow.InputParam[int]
-            y: dflow.InputArtifact
-            z: dflow.OutputArtifact
-            e: dflow.OutputParam[int]
+            x: types.InputParam[int]
+            y: types.InputArtifact
+            z: types.OutputArtifact
+            e: types.OutputParam[int]
 
         with self.assertRaises(AssertionError):
             list(dflow.iter_python_step_args(Foo(1, '2', '3', 4)))
@@ -63,14 +64,14 @@ class TestLib(unittest.TestCase):
     def test_valid_python_step_output(self):
         @dataclass
         class Foo:
-            x: dflow.OutputParam[int]
+            x: types.OutputParam[int]
         foo = Foo(1)
         list(dflow.iter_python_step_return(foo))
 
     def test_invalid_python_step_output(self):
         @dataclass
         class Foo:
-            x: dflow.OutputParam[int]
+            x: types.OutputParam[int]
             y: int
         with self.assertRaises(AssertionError):
             list(dflow.iter_python_step_return(Foo(1, 2)))
@@ -78,12 +79,12 @@ class TestLib(unittest.TestCase):
     def test_convert_to_argo_script(self):
         @dataclass(frozen=True)
         class FooInput:
-            x: dflow.InputParam[int]
-            y: dflow.InputArtifact
-            z: dflow.OutputArtifact
+            x: types.InputParam[int]
+            y: types.InputArtifact
+            z: types.OutputArtifact
         @dataclass
         class FooOutput:
-            x: dflow.OutputParam[int]
+            x: types.OutputParam[int]
 
         def foo(input: FooInput) -> FooOutput:
             return FooOutput(input.x)
@@ -106,11 +107,11 @@ class TestLib(unittest.TestCase):
 
         @dataclass(frozen=True)
         class FooArgs:
-            x: dflow.InputParam[int]
-            y: dflow.InputArtifact
-            z: dflow.OutputArtifact
+            x: types.InputParam[int]
+            y: types.InputArtifact
+            z: types.OutputArtifact
 
-        def foo(args: FooArgs):
+        def foo(args: FooArgs) -> str:
             return f'''\
 echo "{args.x}"
 echo "{args.y}"
