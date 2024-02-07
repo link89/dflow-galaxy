@@ -1,6 +1,5 @@
 from .pydantic import BaseModel
 
-
 from dflow.plugins.dispatcher import DispatcherExecutor
 from pydantic import root_validator, ValidationError
 from typing import Optional
@@ -10,7 +9,7 @@ import os
 
 class ResourcePlan(BaseModel):
     queue: str
-    container: Optional[str]
+    container: Optional[str] = None
     work_dir: str = '.'
     nodes: int = 1
     cpus_per_node: int = 1
@@ -32,13 +31,13 @@ class HpcConfig(BaseModel):
     """
     SSH URL to connect to the HPC, for example: `john@hpc-login01`
     """
-    key_file: Optional[str]
+    key_file: Optional[str] = None
     """
     Path to the private key file for SSH connection
     """
-    slurm: Optional[SlurmConfig]
-    lsf: Optional[LsfConfig]
-    pbs: Optional[PBSConfig]
+    slurm: Optional[SlurmConfig] = None
+    lsf: Optional[LsfConfig] = None
+    pbs: Optional[PBSConfig] = None
     base_dir: str = '.'
 
     def get_context_type(self):
@@ -69,6 +68,7 @@ def create_dispatcher(config: ExecutorConfig, resource_plan: ResourcePlan) -> Di
 
 def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> DispatcherExecutor:
     url = urlparse(config.url)
+    assert url.scheme == 'ssh', 'Only SSH is supported for HPC dispatcher'
     assert url.username, 'Username is required in the URL'
     remote_root = os.path.join(config.base_dir, resource_plan.work_dir)
 
