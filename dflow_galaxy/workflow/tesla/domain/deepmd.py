@@ -78,12 +78,13 @@ def make_run_deepmd_training_step(config: DeepmdConfig,
 
         script = [
             f"cd {args.task_dir}",
-            f"find . -type d > list.tmp.txt",
-            bash_select_chunk(in_file="list.tmp.txt", out_file="task_dirs.txt",
+            f"find . -type d > all.tmp.txt",
+            bash_select_chunk(in_file="all.tmp.txt", out_file="chunk.txt",
                               n=concurrency, i=args.task_index),
 
 
         ]
+
 
     return run_deepmd_training
 
