@@ -1,7 +1,6 @@
 from .pydantic import BaseModel
 
 from dflow.plugins.dispatcher import DispatcherExecutor
-from pydantic import root_validator, ValidationError
 from typing import Optional
 from urllib.parse import urlparse
 import os
@@ -14,9 +13,17 @@ class ResourcePlan(BaseModel):
     nodes: int = 1
     ntasks_per_node: int = 1
 
+    def get_resource_dict(self):
+        return {
+            'number_node': self.nodes,
+            'cpu_per_node': self.ntasks_per_node,
+        }
+
 
 class BohriumConfig(BaseModel):
     email: str
+    password: str
+    project_id: str
 
 
 class HpcConfig(BaseModel):
@@ -63,8 +70,25 @@ def create_dispatcher(config: ExecutorConfig, resource_plan: ResourcePlan) -> Di
     if config.hpc:
         return create_hpc_dispatcher(config.hpc, resource_plan)
     elif config.bohrium:
-        raise NotImplementedError('Bohrium dispatcher is not implemented yet')
+        return create_bohrium_dispatcher(config.bohrium, resource_plan)
     raise ValueError('At least one of hpc or bohrium should be provided')
+
+
+def create_bohrium_dispatcher(config: BohriumConfig, resource_plan: ResourcePlan) -> DispatcherExecutor:
+    remote_profile = {
+        'email': config.email,
+        'password': config.password,
+        'program_id': config.project_id,
+    }
+    machine_dict = {
+        'batch_type': 'Bohrium',
+        'context_type': 'Bohrium',
+        'remote_profile': remote_profile,
+    }
+    return DispatcherExecutor(
+        machine_dict=machine_dict,
+        resources_dict= resource_plan.get_resource_dict(),
+    )
 
 
 def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> DispatcherExecutor:
@@ -78,10 +102,6 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
     remote_profile = { }
     if config.key_file:
         remote_profile['key_filename'] = config.key_file
-    resource_dict = {
-        'number_node': resource_plan.nodes,
-        'cpu_per_node': resource_plan.ntasks_per_node,
-    }
     machine_dict = {
         "batch_type": config.get_context_type(),
         "context_type": "SSHContext",
@@ -94,7 +114,7 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
         port=url.port or 22,
         clean=config.clean,
         machine_dict=machine_dict,
-        resources_dict=resource_dict,
+        resources_dict=resource_plan.get_resource_dict(),
         queue_name=resource_plan.queue,
         remote_root=remote_root,
     )

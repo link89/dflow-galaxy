@@ -40,11 +40,3 @@ for file in files:
     print(f'Updated {file}')
 print('Done')
 
-
-
-
-
-
-
-
-
