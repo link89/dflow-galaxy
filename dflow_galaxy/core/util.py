@@ -1,6 +1,8 @@
 from ai2_kit.core.util import list_split
 import os
 
+from .types import ListStr
+
 
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
@@ -15,7 +17,7 @@ def select_chunk(in_list: list, n: int, i: int):
     return list_split(sorted(in_list), n)[i]
 
 
-def bash_iter_selected_chunk(in_file: str, n: int, i: int, script: str,
+def bash_iter_selected_chunk(in_file: str, n: int, i: int, script: ListStr,
                              it='ITEM', python_cmd: str = 'python', tmp_file: str = 'chunk.tmp.txt'):
     """
     Generate a bash snippet to iterate over lines of a file chunk
@@ -37,13 +39,16 @@ def bash_iter_selected_chunk(in_file: str, n: int, i: int, script: str,
     ])
 
 
-def bash_iter_file_lines(in_file: str, script: str, it='ITEM'):
+def bash_iter_file_lines(in_file: str, script: ListStr, it='ITEM'):
     """
     Generate a bash snippet to iterate over lines of a file
 
     :param in_file: input file
     :param script: bash script to process each line
     """
+    if isinstance(script, list):
+        script = '\n'.join(script)
+
     return f"""while IFS= read -r {it}; do
 
 {script}

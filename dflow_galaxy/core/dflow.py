@@ -122,9 +122,6 @@ def bash_build_template(py_fn: Callable,
     sig = inspect.signature(py_fn)
     assert len(sig.parameters) == 1, f'{py_fn} should have only one parameter'
     args_type = sig.parameters[next(iter(sig.parameters))].annotation
-    return_type  = sig.return_annotation
-
-    assert return_type is str, 'bash step should return a string'
 
     input_artifacts_dir = os.path.join(base_dir, 'input-artifacts')
     output_artifacts_dir = os.path.join(base_dir, 'output-artifacts')
@@ -169,11 +166,16 @@ def bash_build_template(py_fn: Callable,
             dflow_output_artifacts[f.name] = dflow.OutputArtifact(path=path)  # type: ignore
             args_dict[f.name] = f'${bash_name}'
 
+    bash_script = py_fn(ObjProxy(args_dict))
+    if isinstance(bash_script, list):
+        bash_script = '\n'.join(bash_script)
+    assert isinstance(bash_script, str), f'{py_fn} should return a string or a list of string'
+
     source.extend([
         '',
         '#' * 80,
         '',
-        py_fn(ObjProxy(args_dict)),
+        bash_script,
     ])
 
     _dflow_script_check(source, base_dir)

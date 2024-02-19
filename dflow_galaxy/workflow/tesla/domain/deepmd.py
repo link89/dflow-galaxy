@@ -3,9 +3,8 @@ from typing import List
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_select_chunk
+from dflow_galaxy.core.util import bash_iter_selected_chunk
 from dflow_galaxy.core import types
-
 
 
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
@@ -71,19 +70,27 @@ def make_setup_deepmd_tasks_step(config: DeepmdConfig,
 def make_run_deepmd_training_step(config: DeepmdConfig,
                                   concurrency: int,
                                   dp_cmd: str,
+                                  checkpoint_prefix: str,
                                   ):
 
+
     def run_deepmd_training(args: RunDeepmdTrainingArgs):
-        """generate bash script to run deepmd training"""
+        """generate bash script to run deepmd training commands"""
 
         script = [
             f"cd {args.task_dir}",
-            f"find . -type d > all.tmp.txt",
-            bash_select_chunk(in_file="all.tmp.txt", out_file="chunk.txt",
-                              n=concurrency, i=args.task_index),
+            f"find . -type d > all_tasks.tmp.txt",
+            bash_iter_selected_chunk(
+                in_file='all_tasks.tmp.txt', n=concurrency, i=args.task_index,
+                script=[
+                    "pushd $ITEM"
 
 
+                ]),
         ]
+
+        return script
+
 
 
     return run_deepmd_training
