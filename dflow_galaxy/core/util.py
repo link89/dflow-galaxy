@@ -15,6 +15,28 @@ def select_chunk(in_list: list, n: int, i: int):
     return list_split(sorted(in_list), n)[i]
 
 
+def bash_iter_selected_chunk(in_file: str, n: int, i: int, script: str,
+                             it='ITEM', python_cmd: str = 'python', tmp_file: str = 'chunk.tmp.txt'):
+    """
+    Generate a bash snippet to iterate over lines of a file chunk
+
+    :param in_file: input file
+    :param n: number of chunks
+    :param i: chunk index
+    :param script: bash script to process each line
+    :param it: variable name for each line
+    :param python_cmd: python command
+    :param tmp_file: temporary file to store the selected chunk
+    """
+
+    return '\n'.join([
+        bash_select_chunk(in_file=in_file, out_file=tmp_file,
+                          n=n, i=i, python_cmd=python_cmd),
+        '',
+        bash_iter_file_lines(in_file=tmp_file, script=script, it=it),
+    ])
+
+
 def bash_iter_file_lines(in_file: str, script: str, it='ITEM'):
     """
     Generate a bash snippet to iterate over lines of a file
@@ -23,7 +45,10 @@ def bash_iter_file_lines(in_file: str, script: str, it='ITEM'):
     :param script: bash script to process each line
     """
     return f"""while IFS= read -r {it}; do
-{script}"""
+
+{script}
+
+done < {in_file}"""
 
 
 def bash_select_chunk(in_file: str, n: int, i: int, out_file: str, python_cmd: str = 'python'):
