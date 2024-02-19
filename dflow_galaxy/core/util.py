@@ -15,6 +15,23 @@ def select_chunk(in_list: list, n: int, i: int):
     return list_split(sorted(in_list), n)[i]
 
 
+
+def bash_iter_file_lines(in_file: str, script: str):
+    """
+    Generate a bash snippet to iterate over lines of a file
+
+    :param in_file: input file
+    :param script: bash script to process each line
+    """
+
+    return f"""while IFS= read -r line; do
+
+{script}
+
+    """
+
+
+
 def bash_select_chunk(in_file: str, n: int, i: int, out_file: str, python_cmd: str = 'python'):
     """
     Generate a bash snippet to chunk a file by non empty lines into n part and select the ith part
@@ -38,7 +55,6 @@ chunk_size = max(1, len(lines) // n)
 
 start = i * chunk_size
 end = (i + 1) * chunk_size if i < n - 1 else len(lines)
-
 for line in lines[start:end]:
     sys.stdout.write(line)
 EOF

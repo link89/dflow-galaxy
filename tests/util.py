@@ -33,7 +33,6 @@ chunk_size = max(1, len(lines) // n)
 
 start = i * chunk_size
 end = (i + 1) * chunk_size if i < n - 1 else len(lines)
-
 for line in lines[start:end]:
     sys.stdout.write(line)
 EOF

@@ -3,11 +3,12 @@ from typing import List
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dflow import DFlowBuilder
+from dflow_galaxy.core.util import bash_select_chunk
 from dflow_galaxy.core import types
 
 
+
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
-from ai2_kit.core.util import list_split
 
 
 class DeepmdConfig(BaseModel):
@@ -69,26 +70,22 @@ def make_setup_deepmd_tasks_step(config: DeepmdConfig,
 
 def make_run_deepmd_training_step(config: DeepmdConfig,
                                   concurrency: int,
+                                  dp_cmd: str,
                                   ):
 
     def run_deepmd_training(args: RunDeepmdTrainingArgs):
-        import os
+        """generate bash script to run deepmd training"""
+
+        script = [
+            f"cd {args.task_dir}",
+            f"find . -type d > list.tmp.txt",
+            bash_select_chunk(in_file="list.tmp.txt", out_file="task_dirs.txt",
+                              n=concurrency, i=args.task_index),
 
 
-        task_dir = sorted(os.listdir(args.task_dir))[args.task_index]
-
-
-
-
-
-
-
-
-
+        ]
 
     return run_deepmd_training
-
-
 
 
 def add_deepmd_steps(dflow_builder: DFlowBuilder, config: DeepmdConfig, type_map: List[str]):
