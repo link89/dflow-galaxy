@@ -1,7 +1,9 @@
+from typing import List
 
 
-
-def make_deepmd_tasks():
+def make_deepmd_tasks(input_template: dict,
+                      dataset_dirs: List[str]
+                      ):
     ...
 
 

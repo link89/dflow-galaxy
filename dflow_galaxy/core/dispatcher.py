@@ -12,7 +12,7 @@ class ResourcePlan(BaseModel):
     container: Optional[str] = None
     work_dir: str = '.'
     nodes: int = 1
-    cpus_per_node: int = 1
+    ntasks_per_node: int = 1
 
 
 class BohriumConfig(BaseModel):
@@ -39,6 +39,7 @@ class HpcConfig(BaseModel):
     lsf: Optional[LsfConfig] = None
     pbs: Optional[PBSConfig] = None
     base_dir: str = '.'
+    clean: bool = False
 
     def get_context_type(self):
         if self.slurm:
@@ -79,7 +80,7 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
         remote_profile['key_filename'] = config.key_file
     resource_dict = {
         'number_node': resource_plan.nodes,
-        'cpu_per_node': resource_plan.cpus_per_node,
+        'cpu_per_node': resource_plan.ntasks_per_node,
     }
     machine_dict = {
         "batch_type": config.get_context_type(),
@@ -91,6 +92,7 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
         host=url.hostname or 'localhost',
         username=url.username,
         port=url.port or 22,
+        clean=config.clean,
         machine_dict=machine_dict,
         resources_dict=resource_dict,
         queue_name=resource_plan.queue,

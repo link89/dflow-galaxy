@@ -55,8 +55,6 @@ class ObjProxy:
         for obj in self.objs:
             if name in obj:
                 return obj[name]
-            elif hasattr(obj, name):
-                return getattr(obj, name)
         raise AttributeError(f'{name} not found in {self.objs}')
 
 
