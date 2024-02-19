@@ -34,7 +34,7 @@ with open('{in_file}', 'r') as f:
     lines = f.readlines()
 lines = [line for line in lines if line.strip()]
 n, i = {n}, {i}
-chunk_size = len(lines) // n
+chunk_size = max(1, len(lines) // n)
 
 start = i * chunk_size
 end = (i + 1) * chunk_size if i < n - 1 else len(lines)
