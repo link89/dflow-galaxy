@@ -3,12 +3,8 @@ import unittest
 
 from dflow_galaxy.core import dflow, types
 
-import dflow as _dflow
-from dflow.op_template import ScriptOPTemplate
 
-
-
-class TestLib(unittest.TestCase):
+class TestDdflow(unittest.TestCase):
 
     def test_pickle_form(self):
         import cloudpickle as cp
