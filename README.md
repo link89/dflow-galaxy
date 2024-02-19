@@ -11,7 +11,7 @@ Collection of workflows and tools built on top of DFlow and [ai2-kit](https://gi
   * TESLA (under development): a **T**raining-**E**xploration-**S**creening-**L**abeling workflow designed by **AI4EC** lab. Get inspired by [DPGEN](https://github.com/deepmodeling/dpgen), [DPGEN2](https://github.com/deepmodeling/dpgen2), built on top of  [ai2-kit](https://github.com/chenggroup/ai2-kit).
 
 ## Get Started
-`dflow-galaxy` requires Python 3.9+ since it depends on `typing.Annotated` and `PEP 585`.
+`dflow-galaxy` requires Python 3.9+ since it depends on `typing.Annotated`.
 
 To use `dflow-galaxy` as a library, you can install it via pip:
 
