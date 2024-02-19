@@ -1,7 +1,10 @@
-from typing import List
 from dataclasses import dataclass
-from dflow_galaxy.core import dflow, types
+from typing import List
+
 from dflow_galaxy.core.pydantic import BaseModel
+from dflow_galaxy.core import types
+
+from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
 
 
 class DeepmdConfig(BaseModel):
@@ -11,31 +14,60 @@ class DeepmdConfig(BaseModel):
     compress_model: bool = False
 
 
-
 @dataclass(frozen=True)
 class SetupDeepmdTasksArgs:
     input_datasets: types.InputArtifact
     output_dir: types.OutputArtifact
 
 
-def make_deepmd_step(config: DeepmdConfig,
-                     type_map: List[str],
-                     source_map: List[str],
-                     ):
+@dataclass(frozen=True)
+class AddNewTrainingDatasetArgs:
+    label_output_dir: types.InputArtifact
+    dataset_dir: types.OutputArtifact
 
+
+@dataclass(frozen=True)
+class RunDeepmdTrainingArgs:
+    task_dir: types.InputArtifact
+    output_dir: types.OutputArtifact
+
+
+def make_setup_deepmd_tasks_step(config: DeepmdConfig,
+                                 type_map: List[str],
+                                 ):
 
     def setup_deepmd_tasks(args: SetupDeepmdTasksArgs):
-        """
-        Generate files with numbers from 0 to input.num and write to output_dir
-        """
-        ensure_dir(args.output_dir)
-        for i in range(args.num):
-            out_file = f'{args.output_dir}/file_{i}.txt'
-            with open(out_file, 'w') as f:
-                f.write(str(i))
-
+        make_deepmd_task_dirs(input_template=config.input_template,
+                              model_num=config.model_num,
+                              train_systems=[args.input_datasets],
+                              type_map=type_map,
+                              base_dir=args.output_dir,
+                              isolate_outliers=False,
+                              validation_systems=[],
+                              outlier_systems=[],
+                              outlier_weight=-1.0,
+                              dw_input_template=None,
+                              )
 
     return setup_deepmd_tasks
 
 
+def make_add_new_training_dataset_step(config: DeepmdConfig,
+                                       type_map: List[str],
+                                       ):
 
+    def add_new_training_dataset(args: AddNewTrainingDatasetArgs):
+        ...
+
+    return add_new_training_dataset
+
+
+
+def make_run_deepmd_training_step(config: DeepmdConfig,
+                                  ):
+
+    def run_deepmd_training(args: RunDeepmdTrainingArgs):
+        return ""
+
+
+    return run_deepmd_training
