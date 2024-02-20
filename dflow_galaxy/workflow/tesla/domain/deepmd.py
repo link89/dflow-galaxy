@@ -1,15 +1,14 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import List
+
+from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
+from ai2_kit.core.util import cmd_with_checkpoint
+from ai2_kit.domain import constant
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
-
-
-from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
-from ai2_kit.core.util import cmd_with_checkpoint
-from ai2_kit.domain import constant
 
 
 class DeepmdConfig(BaseModel):
@@ -20,22 +19,23 @@ class DeepmdConfig(BaseModel):
 
 
 @dataclass(frozen=True)
-class SetupDeepmdTasksArgs:
-    input_datasets: types.InputArtifact
-    output_dir: types.OutputArtifact
-
-
-@dataclass(frozen=True)
-class AddNewTrainingDatasetArgs:
+class UpdateNewTrainingDatasetArgs:
     label_output_dir: types.InputArtifact
     dataset_dir: types.OutputArtifact
 
 
-@dataclass(frozen=True)
-class RunDeepmdTrainingArgs:
-    task_index: types.InputParam[int]
+class UpdateNewTrainingDatasetStep:
+    def __init__(self, config: DeepmdConfig):
+        self.config = config
 
-    task_dir: types.InputArtifact
+    def __call__(self, args: UpdateNewTrainingDatasetArgs):
+        ...
+
+
+
+@dataclass(frozen=True)
+class SetupDeepmdTasksArgs:
+    init_dataset: types.InputArtifact
     output_dir: types.OutputArtifact
 
 
@@ -47,7 +47,7 @@ class SetupDeepmdTaskStep:
     def __call__(self, args: SetupDeepmdTasksArgs):
         make_deepmd_task_dirs(input_template=self.config.input_template,
                               model_num=self.config.model_num,
-                              train_systems=[args.input_datasets],
+                              train_systems=[args.init_dataset],
                               type_map=self.type_map,
                               base_dir=args.output_dir,
                               isolate_outliers=False,
@@ -56,6 +56,14 @@ class SetupDeepmdTaskStep:
                               outlier_weight=-1.0,
                               dw_input_template=None,
                               )
+
+
+@dataclass(frozen=True)
+class RunDeepmdTrainingArgs:
+    task_index: types.InputParam[int]
+
+    task_dir: types.InputArtifact
+    output_dir: types.OutputArtifact
 
 
 class RunDeepmdTrainingStep:
@@ -76,7 +84,7 @@ class RunDeepmdTrainingStep:
                 script=[
                     '# dp train',
                     'pushd $ITEM',
-                    'mv out/* . || true  # recover from previous run',
+                    'mv out/*.done . || true  # recover checkpoint',
                     self._build_dp_train_script(),
                     '',
                     '# move artifacts to output dir',
