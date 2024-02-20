@@ -540,17 +540,16 @@ class DFlowBuilder:
     def _s3_get_key(self, *keys: str):
         return os.path.join(self.s3_prefix, *keys)
 
-    def _s3_parse_url(self, url: DFLOW_ARTIFACT) -> DFLOW_ARTIFACT:
-        if not isinstance(url, str):
-            return url
-        parsed = urlparse(url)
+    def _ensure_artifact(self, url_or_obj: DFLOW_ARTIFACT) -> DFLOW_ARTIFACT:
+        if not isinstance(url_or_obj, str):
+            return url_or_obj
+        parsed = urlparse(url_or_obj)
         if parsed.scheme == 's3':
             key = os.path.join(self.s3_prefix, parsed.path.lstrip('/'))
             if self._debug:
                 key = os.path.abspath(key)
             return dflow.S3Artifact(key=key)
-        else:
-            raise ValueError(f'unsupported url {url}')
+        raise ValueError(f'unsupported url {url_or_obj}')
 
     def _build_step(self, name: str, args: T_ARGS, template,
                     with_param: Any=None,
@@ -568,9 +567,9 @@ class DFlowBuilder:
             if f.type.__metadata__[0] == types.Symbol.INPUT_PARAMETER:
                 parameters[f.name] = v
             elif f.type.__metadata__[0] == types.Symbol.INPUT_ARTIFACT:
-                artifacts[f.name] = self._s3_parse_url(v)  # type: ignore
+                artifacts[f.name] = self._ensure_artifact(v)  # type: ignore
             elif f.type.__metadata__[0] == types.Symbol.OUTPUT_ARTIFACT:
-                template.outputs.artifacts[f.name].save = [self._s3_parse_url(v)]  # type: ignore
+                template.outputs.artifacts[f.name].save = [self._ensure_artifact(v)]  # type: ignore
         step = dflow.Step(
             name=name,
             template=template,
