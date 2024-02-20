@@ -76,12 +76,15 @@ class RunDeepmdTrainingStep:
                 script=[
                     '# dp train',
                     'pushd $ITEM',
+                    'mv out/* . || true  # recover from previous run',
                     self._build_dp_train_script(),
                     '',
                     '# move artifacts to output dir',
-                    f'mkdir -p {args.output_dir}/$ITEM',
-                    f'mv {constant.DP_FROZEN_MODEL} {args.output_dir}',
-                    f'mv {constant.DP_ORIGINAL_MODEL} {args.output_dir} || true',
+                    f'OUT_DIR={args.output_dir}/$ITEM/out/',
+                    f'mkdir -p $OUT_DIR',
+                    f'mv *.done $OUT_DIR',
+                    f'mv {constant.DP_FROZEN_MODEL} $OUT_DIR',
+                    f'mv {constant.DP_ORIGINAL_MODEL} $OUT_DIR || true',
                     'popd',
                 ]
             ),
@@ -102,4 +105,3 @@ class RunDeepmdTrainingStep:
         else:
             script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')
         return '\n'.join(script)
-
