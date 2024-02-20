@@ -30,8 +30,7 @@ class TestUtil(unittest.TestCase):
             script = '\n'.join([
                 f'cd {tempdir}',
                 f'mkdir -p {" ".join([str(i) for i in range(5)])}',
-                util.bash_iter_ls_slice(search_pattern='*/', n=2, i=0, opt='-d',
-                                        script='echo "$ITEM"'),
+                util.bash_iter_ls_slice('*/', n=2, i=0, opt='-d', script='echo "$ITEM"'),
             ])
             result = sp.check_output(f'bash -c {shlex.quote(script)}', shell=True)
             self.assertEqual(result.decode('utf-8').strip(), '\n'.join(['0/', '1/']))

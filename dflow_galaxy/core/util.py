@@ -18,8 +18,8 @@ def select_chunk(in_list: list, n: int, i: int):
     return list_split(sorted(in_list), n)[i]
 
 
-def bash_iter_ls_slice(search_pattern: str, n: int, i: int, script: ListStr, opt: str = '',
-                       it='ITEM', python_cmd: str = 'python'):
+def bash_iter_ls_slice(search_pattern: str, /, n: int, i: int, script: ListStr, opt: str = '',
+                       it_var='ITEM', python_cmd: str = 'python'):
     """
     Generate a bash snippet to slice the result of `ls` command,
     and iterate over the selected chunk.
@@ -28,12 +28,12 @@ def bash_iter_ls_slice(search_pattern: str, n: int, i: int, script: ListStr, opt
     :param n: number of chunks
     :param i: chunk index
     :param script: bash script to process each directory
-    :param it: variable name for each directory
+    :param it_var: variable name for each item
     """
     return '\n'.join([
         f'LS_RESULT=$(ls -1 {opt} {search_pattern} | sort)',
         bash_slice(in_var='LS_RESULT', n=n, i=i, out_var='LS_CHUNK', python_cmd=python_cmd),
-        bash_iter_var(in_var='LS_CHUNK', script=script, it_var=it),
+        bash_iter_var(in_var='LS_CHUNK', script=script, it_var=it_var),
     ])
 
 
