@@ -1,14 +1,21 @@
 from dataclasses import dataclass
 from typing import List
+import glob
 
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
 from ai2_kit.core.util import cmd_with_checkpoint
 from ai2_kit.domain import constant
 
 from dflow_galaxy.core.pydantic import BaseModel
+from dflow_galaxy.core.dispatcher import BaseAppContext
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
+
+
+class DeepmdContext(BaseAppContext):
+    dp_cmd: str = 'dp'
+    concurrency: int = 4
 
 
 class DeepmdConfig(BaseModel):
@@ -32,7 +39,6 @@ class UpdateNewTrainingDatasetStep:
         ...
 
 
-
 @dataclass(frozen=True)
 class SetupDeepmdTasksArgs:
     init_dataset: types.InputArtifact
@@ -45,11 +51,14 @@ class SetupDeepmdTaskStep:
         self.type_map = type_map
 
     def __call__(self, args: SetupDeepmdTasksArgs):
+        train_dataset_dirs = glob.glob(f'{args.init_dataset}/*')
+
         make_deepmd_task_dirs(input_template=self.config.input_template,
                               model_num=self.config.model_num,
-                              train_systems=[args.init_dataset],
+                              train_systems=train_dataset_dirs,
                               type_map=self.type_map,
                               base_dir=args.output_dir,
+                              # TODO: support the following parameters
                               isolate_outliers=False,
                               validation_systems=[],
                               outlier_systems=[],

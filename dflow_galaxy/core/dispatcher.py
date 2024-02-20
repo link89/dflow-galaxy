@@ -118,3 +118,13 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
         queue_name=resource_plan.queue,
         remote_root=remote_root,
     )
+
+
+class BaseAppContext(BaseModel):
+    executor: str
+    resource_plan: ResourcePlan
+    setup_script: Optional[str] = None
+
+
+class PythonContext(BaseAppContext):
+    python_cmd: str = 'python3'
