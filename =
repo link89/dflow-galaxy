@@ -1,274 +1,0 @@
-Script started on 2024-02-20 14:23:00+08:00 [TERM="xterm" TTY="/dev/pts/16" COLUMNS="132" LINES="13"]
-            cmd_with_checkpoint(train_cmd, 'dp-train.done', False),
-            f'{self.dp_cmd} freeze -o {constant.DP_ORIGINAL_MODEL}',
-        ]
-        # compress (optional) and frozen model
-        if self.config.compress_model:
-            script.append(f'{self.dp_cmd} compress -i {constant.DP_ORIGINAL_MODEL} -o {constant.DP_FROZEN_MODEL}')
-        else:
-            script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')
-        return '\n'.join(script)
-
-^C]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ ^C
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ /bin/python3 /home/henry/.vscode-server/extensions/ms-python.python-2023.22.1/pythonFiles/printEnvVariablesToFile.py /home/henry/.vscode-server/extensions/ms-python.python-2023.22.1/pythonFiles/deactivate/bash/envVars.txt
-/bin/python3: can't open file '/home/henry/.vscode-server/extensions/ms-python.python-2023.22.1/pythonFiles/printEnvVariablesToFile.py': [Errno 2] No such file or directory
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ /bin/python3 /home/henry/.vscode-server/extensions/ms-python.python-2023.22.1/pythonFiles/printEnvVariablesToFile.py /home/henry/.vscode-server/extensions/ms-python.python-2023.22.1/pythonFiles/deactivate/bash/envVars.txt[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cecho /bin/bash[K
-[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ctig[Kgit push xmutig[Kpoetry publish --build^C
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ python -m test.[Ks.tesla
-['pushd task_dir', 'LS_RESULT=$(ls -1 -d */ | sort)\n# bash_slice(LS_RESULT, 1, 0, LS_CHUNK):\nLS_CHUNK=$(IN_DATA="$LS_RESULT" python << EOF\nimport sys,os\nlines = os.environ[\'IN_DATA\'].split(\'\\n\')\nlines = [line for line in lines if line.strip()]\nn, i = 1, 0\nchunk_size = max(1, len(lines) // n)\n\nstart = i * chunk_size\nend = (i + 1) * chunk_size if i < n - 1 else len(lines)\nsys.stdout.write(\'\\n\'.join(lines[start:end]))\nEOF\n)\n# bash_slice end\nwhile IFS= read -r ITEM; do\n# dp train\npushd $ITEM\nif [ -f dp-train.done ]; then echo \'hit checkpoint: dp-train.done, skip...\'; else\n  dp train input.json\n  __EXITCODE__=$?; if [ $__EXITCODE__ -ne 0 ]; then exit $__EXITCODE__; fi\n  touch dp-train.done\nfi\ndp freeze -o original_model.pb\nmv original_model.pb frozen_model.pb\n\n# move artifacts to output dir\nmkdir -p output_dir/$ITEM\nmv frozen_model.pb output_dir\nmv original_model.pb output_dir || true\npopd\ndone <<< "$LS_CHUNK" ', 'popd']
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.000s
-
-OK
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ python -m tests.tesla
-pushd task_dir
-LS_RESULT=$(ls -1 -d */ | sort)
-# bash_slice(LS_RESULT, 1, 0, LS_CHUNK):
-LS_CHUNK=$(IN_DATA="$LS_RESULT" python << EOF
-import sys,os
-lines = os.environ['IN_DATA'].split('\n')
-lines = [line for line in lines if line.strip()]
-n, i = 1, 0
-chunk_size = max(1, len(lines) // n)
-
-start = i * chunk_size
-end = (i + 1) * chunk_size if i < n - 1 else len(lines)
-sys.stdout.write('\n'.join(lines[start:end]))
-EOF
-)
-# bash_slice end
-while IFS= read -r ITEM; do
-# dp train
-pushd $ITEM
-if [ -f dp-train.done ]; then echo 'hit checkpoint: dp-train.done, skip...'; else
-  dp train input.json
-  __EXITCODE__=$?; if [ $__EXITCODE__ -ne 0 ]; then exit $__EXITCODE__; fi
-  touch dp-train.done
-fi
-dp freeze -o original_model.pb
-mv original_model.pb frozen_model.pb
-
-# move artifacts to output dir
-mkdir -p output_dir/$ITEM
-mv frozen_model.pb output_dir
-mv original_model.pb output_dir || true
-popd
-done <<< "$LS_CHUNK" 
-popd
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.000s
-
-OK
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ [K]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ https://git.xmu.edu.cn/cheng-group/lab-poc/-/blob/main/check_list.mdhttps://git.xmu.edu.cn/cheng-group/lab-poc/-/blob/main/check_list.md^C
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ df[K[Kgit [K[K[K[Kgit diff
-[?1h=[1mdiff --git a/dflow_galaxy/core/util.py b/dflow_galaxy/core/util.py[m[m
-[1mindex bff6fc8..0073381 100644[m[m
-[1m--- a/dflow_galaxy/core/util.py[m[m
-[1m+++ b/dflow_galaxy/core/util.py[m[m
-[36m@@ -64,7 +64,7 @@[m [mdef bash_slice(in_var: str, n: int, i: int, out_var: str,[m[m
-     """[m[m
-     assert 0 <= i < n, f'nth should be in range [0, {n})'[m[m
- [m[m
-[31m-    return f"""# generated by: bash_slice({in_var}, {n}, {i}, {out_var})[m[m
-[32m+[m[32m    return f"""# bash_slice({in_var}, {n}, {i}, {out_var}):[m[m
- {out_var}=$(IN_DATA="${in_var}" {python_cmd} << EOF[m[m
- import sys,os[m[m
- lines = os.environ['IN_DATA'].split('\\n')[m[m
-[36m@@ -77,4 +77,4 @@[m [mend = (i + 1) * chunk_size if i < n - 1 else len(lines)[m[m
- sys.stdout.write('\\n'.join(lines[start:end]))[m[m
- EOF[m[m
- )[m[m
-[31m-# end of bash_slice"""[m[m
-[32m+[m[32m# bash_slice end"""[m[m
-[1mdiff --git a/dflow_galaxy/workflow/tesla/domain/deepmd.py b/dflow_galaxy/workflow/tesla/domain/deepmd.py[m[m
-[1mindex 4a3917f..8f8f053 100644[m[m
-[1m--- a/dflow_galaxy/workflow/tesla/domain/deepmd.py[m[m
-[1m+++ b/dflow_galaxy/workflow/tesla/domain/deepmd.py[m[m
-[36m@@ -15,7 +15,7 @@[m [mfrom ai2_kit.domain import constant[m[m
- class DeepmdConfig(BaseModel):[m[m
-     model_num: int = 4[m[m
-     init_dataset: List[str] = [][m[m
-:[K[K[31m-    input_template: dict = dict()[m[m
-:[K[K[32m+[m[32m    input_template: dict = {}[m[m
-:[K[K     compress_model: bool = False[m[m
-:[K[K [m[m
-:[K[K[?1l>]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ [16P(reverse-i-search)`':[Ct': git diffe': python -m tests.tesla[1@s[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[1@t[C[C[C[C[C[C[C[C[C[C[C[C[C]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ python -m tests.tesla
-pushd task_dir
-LS_RESULT=$(ls -1 -d */ | sort)
-# bash_slice(LS_RESULT, 1, 0, LS_CHUNK):
-LS_CHUNK=$(IN_DATA="$LS_RESULT" python << EOF
-import sys,os
-lines = os.environ['IN_DATA'].split('\n')
-lines = [line for line in lines if line.strip()]
-n, i = 1, 0
-chunk_size = max(1, len(lines) // n)
-
-start = i * chunk_size
-end = (i + 1) * chunk_size if i < n - 1 else len(lines)
-sys.stdout.write('\n'.join(lines[start:end]))
-EOF
-)
-# bash_slice end
-while IFS= read -r ITEM; do
-# dp train
-pushd $ITEM
-if [ -f dp-train.done ]; then echo 'hit checkpoint: dp-train.done, skip...'; else
-  dp train input.json
-  __EXITCODE__=$?; if [ $__EXITCODE__ -ne 0 ]; then exit $__EXITCODE__; fi
-  touch dp-train.done
-fi
-dp freeze -o original_model.pb
-mv original_model.pb frozen_model.pb
-
-# move artifacts to output dir
-mkdir -p output_dir/$ITEM
-mv frozen_model.pb output_dir
-mv original_model.pb output_dir || true
-popd
-done <<< "$LS_CHUNK" 
-popd
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.000s
-
-OK
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ df[K[Kgit diff
-[?1h=[1mdiff --git a/dflow_galaxy/core/util.py b/dflow_galaxy/core/util.py[m[m
-[1mindex bff6fc8..531536b 100644[m[m
-[1m--- a/dflow_galaxy/core/util.py[m[m
-[1m+++ b/dflow_galaxy/core/util.py[m[m
-[36m@@ -1,5 +1,4 @@[m[m
- from ai2_kit.core.util import list_split[m[m
-[31m-import shlex[m[m
- import os[m[m
- [m[m
- from .types import ListStr[m[m
-[36m@@ -13,6 +12,12 @@[m [mdef ensure_dirname(path: str):[m[m
-     os.makedirs(os.path.dirname(path), exist_ok=True)[m[m
- [m[m
- [m[m
-[32m+[m[32mdef ensure_str(s: ListStr):[m[m
-[32m+[m[32m    if isinstance(s, list):[m[m
-[32m+[m[32m        return '\n'.join(s)[m[m
-[32m+[m[32m    return s[m[m
-[32m+[m[m
-[32m+[m[m
- def select_chunk(in_list: list, n: int, i: int):[m[m
-     assert 0 <= i < n, f'nth should be in range [0, {n})'[m[m
-     return list_split(sorted(in_list), n)[i][m[m
-[36m@@ -44,8 +49,7 @@[m [mdef bash_iter_var(in_var: str, script: ListStr, it_var='ITEM'):[m[m
-     :param in_var: variable name of input data[m[m
-     :param script: bash script to process each line[m[m
-     """[m[m
-:[K[K...skipping...
-[32m+[m[32m                    '',[m[m
-[32m+[m[32m                    '# move artifacts to output dir',[m[m
-[32m+[m[32m                    f'mkdir -p {args.output_dir}/$ITEM',[m[m
-[32m+[m[32m                    f'mv {constant.DP_FROZEN_MODEL} {args.output_dir}',[m[m
-[32m+[m[32m                    f'mv {constant.DP_ORIGINAL_MODEL} {args.output_dir} || true',[m[m
-[32m+[m[32m                    'popd',[m[m
-                 ][m[m
-             ),[m[m
-[32m+[m[32m            'popd',[m[m
-         ][m[m
-         return script[m[m
- [m[m
-[31m-[m[m
-[32m+[m[32m    def _build_dp_train_script(self):[m[m
-[32m+[m[32m        train_cmd = f'{self.dp_cmd} train {constant.DP_INPUT_FILE}'[m[m
-[32m+[m[32m        # TODO: handle restart, initialize from previous model, support pretrain model[m[m
-[32m+[m[32m        script = [[m[m
-[32m+[m[32m            cmd_with_checkpoint(train_cmd, 'dp-train.done', False),[m[m
-[32m+[m[32m            f'{self.dp_cmd} freeze -o {constant.DP_ORIGINAL_MODEL}',[m[m
-[32m+[m[32m        ][m[m
-[32m+[m[32m        # compress (optional) and frozen model[m[m
-[32m+[m[32m        if self.config.compress_model:[m[m
-[32m+[m[32m            script.append(f'{self.dp_cmd} compress -i {constant.DP_ORIGINAL_MODEL} -o {constant.DP_FROZEN_MODEL}')[m[m
-[32m+[m[32m        else:[m[m
-[32m+[m[32m            script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')[m[m
-[32m+[m[32m        return '\n'.join(script)[m[m
- [m[m
-[7m(END)[27m[K[K[?1l>]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ df[K[Kgit add *
-The following paths are ignored by one of your .gitignore files:
-dist
-tmp
-Use -f if you really want to add them.
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ git [K[K[K[Kgit commkit -[K[K[K[K[Kit -am "[K[K[K[Kam _df[K[K[K"df[K[Kdf[K[Kwip: df[K[Kefat[K[K[K[Kimplement deepmd"
-[tesla 6849440] wip: implement deepmd
- 5 files changed, 323 insertions(+), 13 deletions(-)
- create mode 100644 =
- create mode 100644 tests/misc.py
- create mode 100644 tests/tesla.py
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ git push
-Enumerating objects: 22, done.
-Counting objects:   4% (1/22)Counting objects:   9% (2/22)Counting objects:  13% (3/22)Counting objects:  18% (4/22)Counting objects:  22% (5/22)Counting objects:  27% (6/22)Counting objects:  31% (7/22)Counting objects:  36% (8/22)Counting objects:  40% (9/22)Counting objects:  45% (10/22)Counting objects:  50% (11/22)Counting objects:  54% (12/22)Counting objects:  59% (13/22)Counting objects:  63% (14/22)Counting objects:  68% (15/22)Counting objects:  72% (16/22)Counting objects:  77% (17/22)Counting objects:  81% (18/22)Counting objects:  86% (19/22)Counting objects:  90% (20/22)Counting objects:  95% (21/22)Counting objects: 100% (22/22)Counting objects: 100% (22/22), done.
-Delta compression using up to 8 threads
-Compressing objects:   7% (1/13)Compressing objects:  15% (2/13)Compressing objects:  23% (3/13)Compressing objects:  30% (4/13)Compressing objects:  38% (5/13)Compressing objectsre/util.py[m[m
-[36m@@ -1,5 +1,4 @@[m[m
- from ai2_kit.core.util import list_split[m[m
-[31m-import shlex[m[m
- import os[m[m
- [m[m
- from .types import ListStr[m[m
-[36m@@ -13,6 +12,12 @@[m [mdef ensure_dirname(path: str):[m[m
-     os.makedirs(os.path.dirname(path), exist_ok=True)[m[m
- [m[m
- [m[m
-[32m+[m[32mdef ensure_str(s: ListStr):[m[m
-[32m+[m[32m    if isinstance(s, list):[m[m
-[32m+[m[32m        return '\n'.join(s)[m[m
-[32m+[m[32m    return s[m[m
-[32m+[m[m
-[32m+[m[m
- def select_chunk(in_list: list, n: int, i: int):[m[m
-     assert 0 <= i < n, f'nth should be in range [0, {n})'[m[m
-     return list_split(sorted(in_list), n)[i][m[m
-[36m@@ -44,8 +49,7 @@[m [mdef bash_iter_var(in_var: str, script: ListStr, it_var='ITEM'):[m[m
-     :param in_var: variable name of input data[m[m
-     :param script: bash script to process each line[m[m
-     """[m[m
-:[K[K...skipping...
-[32m+[m[32m                    '',[m[m
-[32m+[m[32m                    '# move artifacts to output dir',[m[m
-[32m+[m[32m                    f'mkdir -p {args.output_dir}/$ITEM',[m[m
-[32m+[m[32m                    f'mv {constant.DP_FROZEN_MODEL} {args.output_dir}',[m[m
-[32m+[m[32m                    f'mv {constant.DP_ORIGINAL_MODEL} {args.output_dir} || true',[m[m
-[32m+[m[32m                    'popd',[m[m
-                 ][m[m
-             ),[m[m
-[32m+[m[32m            'popd',[m[m
-         ][m[m
-         return script[m[m
- [m[m
-[31m-[m[m
-[32m+[m[32m    def _build_dp_train_script(self):[m[m
-[32m+[m[32m        train_cmd = f'{self.dp_cmd} train {constant.DP_INPUT_FILE}'[m[m
-[32m+[m[32m        # TODO: handle restart, initialize from previous model, support pretrain model[m[m
-[32m+[m[32m        script = [[m[m
-[32m+[m[32m            cmd_with_checkpoint(train_cmd, 'dp-train.done', False),[m[m
-[32m+[m[32m            f'{self.dp_cmd} freeze -o {constant.DP_ORIGINAL_MODEL}',[m[m
-[32m+[m[32m        ][m[m
-[32m+[m[32m        # compress (optional) and frozen model[m[m
-[32m+[m[32m        if self.config.compress_model:[m[m
-[32m+[m[32m            script.append(f'{self.dp_cmd} compress -i {constant.DP_ORIGINAL_MODEL} -o {constant.DP_FROZEN_MODEL}')[m[m
-[32m+[m[32m        else:[m[m
-[32m+[m[32m            script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')[m[m
-[32m+[m[32m        return '\n'.join(script)[m[m
- [m[m
-[7m(END)[27m[K[K[?1l>]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ df[K[Kgit add *
-The following paths are ignored by one of your .gitignore files:
-dist
-tmp
-Use -f if you really want to add them.
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ git [K[K[K[Kgit commkit -[K[K[K[K[Kit -am "[K[K[K[Kam _df[K[K[K"df[K[Kdf[K[Kwip: df[K[Kefat[K[K[K[Kimplement deepmd"
-[tesla 6849440] wip: implement deepmd
- 5 files changed, 323 insertions(+), 13 deletions(-)
- create mode 100644 =
- create mode 100644 tests/misc.py
- create mode 100644 tests/tesla.py
-]0;henry@henry-ikkem: ~/src/dflow-galaxyhenry@henry-ikkem:~/src/dflow-galaxy$ git push
-Enumerating objects: 22, done.
-Counting objects:   4% (1/22)Counting objects:   9% (2/22)Counting objects:  13% (3/22)Counting objects:  18% (4/22)Counting objects:  22% (5/22)Counting objects:  27% (6/22)Counting objects:  31% (7/22)Counting objects:  36% (8/22)Counting objects:  40% (9/22)Counting objects:  45% (10/22)Counting objects:  50% (11/22)Counting objects:  54% (12/22)Counting objects:  59% (13/22)Counting objects:  63% (14/22)Counting objects:  68% (15/22)Counting objects:  72% (16/22)Counting objects:  77% (17/22)Counting objects:  81% (18/22)Counting objects:  86% (19/22)Counting objects:  90% (20/22)Counting objects:  95% (21/22)Counting objects: 100% (22/22)Counting objects: 100% (22/22), done.
-Delta compression using u
