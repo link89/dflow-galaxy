@@ -15,7 +15,7 @@ from ai2_kit.domain import constant
 class DeepmdConfig(BaseModel):
     model_num: int = 4
     init_dataset: List[str] = []
-    input_template: dict = dict()
+    input_template: dict = {}
     compress_model: bool = False
 
 
@@ -59,7 +59,6 @@ class SetupDeepmdTaskStep:
 
 
 class RunDeepmdTrainingStep:
-
     def __init__(self,
                  config: DeepmdConfig,
                  concurrency: int,
@@ -70,19 +69,37 @@ class RunDeepmdTrainingStep:
 
     def __call__(self, args: RunDeepmdTrainingArgs):
         """generate bash script to run deepmd training commands"""
-
-
-
         script = [
-            f"cd {args.task_dir}",
+            f"pushd {args.task_dir}",
             bash_iter_ls_slice(
                 '*/', opt='-d', n=self.c, i=args.task_index, it_var='ITEM',
                 script=[
-
+                    '# dp train',
+                    'pushd $ITEM',
+                    self._build_dp_train_script(),
+                    '',
+                    '# move artifacts to output dir',
+                    f'mkdir -p {args.output_dir}/$ITEM',
+                    f'mv {constant.DP_FROZEN_MODEL} {args.output_dir}',
+                    f'mv {constant.DP_ORIGINAL_MODEL} {args.output_dir} || true',
+                    'popd',
                 ]
             ),
+            'popd',
         ]
         return script
 
-
+    def _build_dp_train_script(self):
+        train_cmd = f'{self.dp_cmd} train {constant.DP_INPUT_FILE}'
+        # TODO: handle restart, initialize from previous model, support pretrain model
+        script = [
+            cmd_with_checkpoint(train_cmd, 'dp-train.done', False),
+            f'{self.dp_cmd} freeze -o {constant.DP_ORIGINAL_MODEL}',
+        ]
+        # compress (optional) and frozen model
+        if self.config.compress_model:
+            script.append(f'{self.dp_cmd} compress -i {constant.DP_ORIGINAL_MODEL} -o {constant.DP_FROZEN_MODEL}')
+        else:
+            script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')
+        return '\n'.join(script)
 
