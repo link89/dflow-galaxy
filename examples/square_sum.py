@@ -82,7 +82,7 @@ def main():
         )
         resource = dispatcher.Resource(
             queue='c52-small',
-            work_dir='./square-sum',
+            sub_path='./square-sum',
             nodes=1,
             ntasks_per_node=1,
         )

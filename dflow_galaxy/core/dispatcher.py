@@ -9,7 +9,8 @@ import os
 class Resource(BaseModel):
     queue: Optional[str] = None
     container: Optional[str] = None
-    work_dir: str = '.'
+    sub_path: str = '.'
+
     nodes: int = 1
     ntasks_per_node: int = 1
 
@@ -97,7 +98,7 @@ def create_hpc_dispatcher(config: HpcConfig, resource: Resource) -> DispatcherEx
     assert url.username, 'Username is required in the URL'
     assert os.path.isabs(config.base_dir), 'Base directory must be an absolute path'
     remote_root = os.path.normpath(
-        os.path.join(config.base_dir, resource.work_dir))
+        os.path.join(config.base_dir, resource.sub_path))
 
     remote_profile = { }
     if config.key_file:

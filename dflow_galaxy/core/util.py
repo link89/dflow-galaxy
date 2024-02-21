@@ -1,8 +1,10 @@
+from typing import Optional, TypeVar
 from ai2_kit.core.util import list_split
 import os
 
 from .types import ListStr
 
+T = TypeVar('T')
 
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
@@ -10,6 +12,11 @@ def ensure_dir(path: str):
 
 def ensure_dirname(path: str):
     os.makedirs(os.path.dirname(path), exist_ok=True)
+
+
+def not_none(v: Optional[T], msg: str = '') -> T:
+    assert v is not None, msg
+    return v
 
 
 def ensure_str(s: ListStr):
