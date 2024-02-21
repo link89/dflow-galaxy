@@ -405,8 +405,7 @@ class DFlowBuilder:
         self.workflow.submit()
         self.workflow.wait()
 
-    def make_bash_step(self,
-                       fn: Callable[[T_ARGS], str],
+    def make_bash_step(self, fn: Callable[[T_ARGS], types.ListStr], /,
                        setup_script: str = '',
                        with_param: Any = None,
                        executor: Optional[DispatcherExecutor] = None,
@@ -429,8 +428,7 @@ class DFlowBuilder:
                                     executor=executor)
         return wrapped_fn
 
-    def make_python_step(self,
-                         fn: Callable[[T_ARGS], T_RESULT],
+    def make_python_step(self, fn: Callable[[T_ARGS], T_RESULT], /,
                          setup_script: str = '',
                          with_param: Any = None,
                          pkgs: Optional[Iterable[str]] = None,

@@ -7,7 +7,7 @@ import unittest
 
 class TestTesla(unittest.TestCase):
     def test_deepmd_train(self):
-        step = deepmd.RunDeepmdTrainingStep(
+        step = deepmd.RunDeepmdTrainingFn(
             config=deepmd.DeepmdConfig(),
             concurrency=1,
             dp_cmd='dp',

@@ -17,7 +17,7 @@ class GeneralConfig(BaseModel):
 
 
 class AppContext(BaseModel):
-    python: Optional[PythonContext] = None
+    python: PythonContext
     deepmd: Optional['deepmd.DeepmdContext'] = None
     lammps: Optional['lammps.LammpsContext'] = None
     cp2k: Optional['cp2k.Cp2kContext'] = None
@@ -29,7 +29,6 @@ class LabelConfig(BaseModel):
 
 class TrainConfig(BaseModel):
     deepmd: deepmd.DeepmdConfig
-
 
 
 class ExploreConfig(BaseModel):

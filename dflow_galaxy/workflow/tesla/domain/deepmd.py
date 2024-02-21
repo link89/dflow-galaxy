@@ -51,7 +51,7 @@ class SetupDeepmdTasksArgs:
     output_dir: types.OutputArtifact
 
 
-class SetupDeepmdTaskStep:
+class SetupDeepmdTaskFn:
     def __init__(self, config: DeepmdConfig, type_map: List[str]):
         self.config = config
         self.type_map = type_map
@@ -81,7 +81,7 @@ class RunDeepmdTrainingArgs:
     output_dir: types.OutputArtifact
 
 
-class RunDeepmdTrainingStep:
+class RunDeepmdTrainingFn:
     def __init__(self,
                  config: DeepmdConfig,
                  concurrency: int,
@@ -130,31 +130,33 @@ class RunDeepmdTrainingStep:
         return '\n'.join(script)
 
 
-def deepmd_provision(builder: DFlowBuilder,
+def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                      config: DeepmdConfig,
                      context: DeepmdContext,
                      runtime: DeepmdRuntime):
 
-    setup_task_step = builder.make_python_step(
-        fn=SetupDeepmdTaskStep(config, runtime.type_map),
-    )(SetupDeepmdTasksArgs(
-        init_dataset=runtime.init_dataset_url,
-        output_dir=runtime.base_url,
-    ))
-
-    run_training_step = builder.make_python_step(
-        fn=RunDeepmdTrainingStep(
-            config=config,
-            concurrency=context.concurrency,
-            dp_cmd=context.dp_cmd,
+    setup_task_fn = SetupDeepmdTaskFn(config, runtime.type_map)
+    setup_task_step = builder.make_python_step(setup_task_fn)(
+        SetupDeepmdTasksArgs(
+            init_dataset=runtime.init_dataset_url,
+            output_dir=runtime.base_url,
         )
+    )
+    run_training_fn = RunDeepmdTrainingFn(
+        config=config,
+        concurrency=context.concurrency,
+        dp_cmd=context.dp_cmd,
+    )
+    run_training_step = builder.make_bash_step(run_training_fn)(
+        RunDeepmdTrainingArgs(
+            task_index=0,
+            task_dir=setup_task_step.args.output_dir,
+            output_dir=runtime.base_url,
+        )
+    )
 
-    )(RunDeepmdTrainingArgs(
-        task_index=0,
-        task_dir=setup_task_step.args.output_dir,
-        output_dir=runtime.base_url,
-    ))
-
-
-
+    builder.add_steps([
+        setup_task_step,
+        run_training_step,
+    ])
 
