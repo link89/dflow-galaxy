@@ -24,6 +24,12 @@ class DeepmdConfig(BaseModel):
     input_template: dict = {}
     compress_model: bool = False
 
+@dataclass
+class DeepmdRuntime:
+    base_url: str
+    init_dataset_url: str
+    type_map: List[str]
+
 
 @dataclass(frozen=True)
 class UpdateNewTrainingDatasetArgs:
@@ -122,3 +128,33 @@ class RunDeepmdTrainingStep:
         else:
             script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')
         return '\n'.join(script)
+
+
+def deepmd_provision(builder: DFlowBuilder,
+                     config: DeepmdConfig,
+                     context: DeepmdContext,
+                     runtime: DeepmdRuntime):
+
+    setup_task_step = builder.make_python_step(
+        fn=SetupDeepmdTaskStep(config, runtime.type_map),
+    )(SetupDeepmdTasksArgs(
+        init_dataset=runtime.init_dataset_url,
+        output_dir=runtime.base_url,
+    ))
+
+    run_training_step = builder.make_python_step(
+        fn=RunDeepmdTrainingStep(
+            config=config,
+            concurrency=context.concurrency,
+            dp_cmd=context.dp_cmd,
+        )
+
+    )(RunDeepmdTrainingArgs(
+        task_index=0,
+        task_dir=setup_task_step.args.output_dir,
+        output_dir=runtime.base_url,
+    ))
+
+
+
+
