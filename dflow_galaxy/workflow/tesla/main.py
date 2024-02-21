@@ -14,13 +14,11 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
 
     builder = DFlowBuilder(name=name, s3_prefix=s3_prefix, debug=debug)
 
-
     config = TeslaConfig(**config_raw)
 
     type_map = config.workflow.general.type_map
     mass_map = config.workflow.general.mass_map
-    max_iter = config.workflow.general.max_iter
-
+    max_iter = config.workflow.general.max_iters
 
     for iter_num in range(max_iter):
         iter_str = f'{iter_num:02d}'
@@ -34,8 +32,9 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
                 init_dataset_url='TODO',
                 type_map=type_map,
             )
-            deepmd.deepmd_provision(builder, f'deepmd-train-{iter_str}',
+            deepmd.deepmd_provision(builder, f'train-deepmd-{iter_str}',
                                     config=deepmd_cfg,
+                                    executor=deepmd_executor,
                                     deepmd_app=not_none(deepmd_executor.apps.deepmd),
                                     python_app=not_none(deepmd_executor.apps.python),
                                     runtime=deepmd_runtime)
@@ -47,7 +46,6 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
         # TODO: label
 
     builder.run()
-
 
 
 cmd_entry = CmdGroup({

@@ -12,7 +12,7 @@ from .domain import (
 class GeneralConfig(BaseModel):
     type_map: List[str]
     mass_map: List[str]
-    max_iter: int = 1
+    max_iters: int = 1
 
 
 class AppsConfig(BaseModel):

@@ -14,7 +14,7 @@ def ensure_dirname(path: str):
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
 
-def not_none(v, msg: str = ''):
+def not_none(v: Optional[T], msg: str = '') -> T:
     assert v is not None, msg
     return v
 
