@@ -28,7 +28,8 @@ class LabelConfig(BaseModel):
 
 
 class TrainConfig(BaseModel):
-    ...
+    deepmd: deepmd.DeepmdConfig
+
 
 
 class ExploreConfig(BaseModel):
