@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import os
 
 
-class ResourcePlan(BaseModel):
+class Resource(BaseModel):
     queue: Optional[str] = None
     container: Optional[str] = None
     work_dir: str = '.'
@@ -63,18 +63,18 @@ class ExecutorConfig(BaseModel):
     bohrium: Optional[BohriumConfig] = None
 
 
-def create_dispatcher(config: ExecutorConfig, resource_plan: ResourcePlan) -> DispatcherExecutor:
+def create_dispatcher(config: ExecutorConfig, resource: Resource) -> DispatcherExecutor:
     """
     Create a dispatcher executor based on the configuration
     """
     if config.hpc:
-        return create_hpc_dispatcher(config.hpc, resource_plan)
+        return create_hpc_dispatcher(config.hpc, resource)
     elif config.bohrium:
-        return create_bohrium_dispatcher(config.bohrium, resource_plan)
+        return create_bohrium_dispatcher(config.bohrium, resource)
     raise ValueError('At least one of hpc or bohrium should be provided')
 
 
-def create_bohrium_dispatcher(config: BohriumConfig, resource_plan: ResourcePlan) -> DispatcherExecutor:
+def create_bohrium_dispatcher(config: BohriumConfig, resource: Resource) -> DispatcherExecutor:
     remote_profile = {
         'email': config.email,
         'password': config.password,
@@ -87,17 +87,17 @@ def create_bohrium_dispatcher(config: BohriumConfig, resource_plan: ResourcePlan
     }
     return DispatcherExecutor(
         machine_dict=machine_dict,
-        resources_dict= resource_plan.get_resource_dict(),
+        resources_dict= resource.get_resource_dict(),
     )
 
 
-def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> DispatcherExecutor:
+def create_hpc_dispatcher(config: HpcConfig, resource: Resource) -> DispatcherExecutor:
     url = urlparse(config.url)
     assert url.scheme == 'ssh', 'Only SSH is supported for HPC dispatcher'
     assert url.username, 'Username is required in the URL'
     assert os.path.isabs(config.base_dir), 'Base directory must be an absolute path'
     remote_root = os.path.normpath(
-        os.path.join(config.base_dir, resource_plan.work_dir))
+        os.path.join(config.base_dir, resource.work_dir))
 
     remote_profile = { }
     if config.key_file:
@@ -114,17 +114,16 @@ def create_hpc_dispatcher(config: HpcConfig, resource_plan: ResourcePlan) -> Dis
         port=url.port or 22,
         clean=config.clean,
         machine_dict=machine_dict,
-        resources_dict=resource_plan.get_resource_dict(),
-        queue_name=resource_plan.queue,
+        resources_dict=resource.get_resource_dict(),
+        queue_name=resource.queue,
         remote_root=remote_root,
     )
 
 
-class BaseAppContext(BaseModel):
-    executor: str
-    resource_plan: ResourcePlan
+class BaseApp(BaseModel):
+    resource: Resource
     setup_script: Optional[str] = None
 
 
-class PythonContext(BaseAppContext):
+class PythonApp(BaseApp):
     python_cmd: str = 'python3'

@@ -80,13 +80,13 @@ def main():
             base_dir='/data/home/whxu/tmp/dflow-galaxy',
             slurm=dispatcher.HpcConfig.SlurmConfig(),
         )
-        resource_plan = dispatcher.ResourcePlan(
+        resource = dispatcher.Resource(
             queue='c52-small',
             work_dir='./square-sum',
             nodes=1,
             ntasks_per_node=1,
         )
-        executor = dispatcher.create_hpc_dispatcher(hpc_config, resource_plan)
+        executor = dispatcher.create_hpc_dispatcher(hpc_config, resource)
         extra_kwargs['default_executor'] = executor
 
     # build and run workflow

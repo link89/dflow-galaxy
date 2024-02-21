@@ -1,6 +1,5 @@
 from typing import List, Mapping, Optional
 from dflow_galaxy.core.pydantic import BaseModel
-from dflow_galaxy.core.dispatcher import PythonContext
 from dflow_galaxy.core import dispatcher
 
 from .domain import (
@@ -10,17 +9,29 @@ from .domain import (
 )
 
 
+
 class GeneralConfig(BaseModel):
     type_map: List[str]
     mass_map: List[str]
     max_iter: int = 1
 
 
-class AppContext(BaseModel):
-    python: PythonContext
+class AppsConfig(BaseModel):
+    python: dispatcher.PythonApp
     deepmd: Optional['deepmd.DeepmdContext'] = None
     lammps: Optional['lammps.LammpsContext'] = None
     cp2k: Optional['cp2k.Cp2kContext'] = None
+
+
+class Orchestration(BaseModel):
+    python: str
+    deepmd: Optional[str] = None
+    lammps: Optional[str] = None
+    cp2k: Optional[str] = None
+
+
+class TeslaExecutorConfig(dispatcher.ExecutorConfig):
+    apps: AppsConfig
 
 
 class LabelConfig(BaseModel):
@@ -48,8 +59,8 @@ class WorkflowConfig(BaseModel):
 
 
 class TeslaConfig(BaseModel):
-    executors: Mapping[str, dispatcher.ExecutorConfig]
-    apps: AppContext
+    executors: Mapping[str, TeslaExecutorConfig]
+    orchestration: Orchestration
     datasets: Mapping[str, str]
     workflow: WorkflowConfig
 

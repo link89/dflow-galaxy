@@ -45,3 +45,10 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
         # TODO: explore
         # TODO: screen
         # TODO: label
+
+
+
+cmd_entry = CmdGroup({
+    'run': run_tesla,
+
+}, doc='TESLA workflow')

@@ -7,13 +7,13 @@ from ai2_kit.core.util import cmd_with_checkpoint
 from ai2_kit.domain import constant
 
 from dflow_galaxy.core.pydantic import BaseModel
-from dflow_galaxy.core.dispatcher import BaseAppContext
+from dflow_galaxy.core.dispatcher import BaseApp
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
 
 
-class DeepmdContext(BaseAppContext):
+class DeepmdContext(BaseApp):
     dp_cmd: str = 'dp'
     concurrency: int = 4
 
