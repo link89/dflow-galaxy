@@ -16,11 +16,10 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
 
 
     config = TeslaConfig(**config_raw)
+
     type_map = config.workflow.general.type_map
     mass_map = config.workflow.general.mass_map
     max_iter = config.workflow.general.max_iter
-
-
 
 
     for iter_num in range(max_iter):
@@ -29,18 +28,16 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
         # training
         deepmd_cfg = config.workflow.train.deepmd
         if deepmd_cfg:
-            executor = not_none(config.orchestration.deepmd, 'missing deepmd in orchestration')
-            deepmd_ctx = not_none(config.executors[executor].apps.deepmd, f'executor {executor} missing deepmd app')
-
+            deepmd_executor = not_none(config.executors[not_none(config.orchestration.deepmd)])
             deepmd_runtime = deepmd.DeepmdRuntime(
                 base_url=config.datasets['base'],
                 init_dataset_url='TODO',
                 type_map=type_map,
             )
-
             deepmd.deepmd_provision(builder, f'deepmd-train-{iter_str}',
                                     config=deepmd_cfg,
-                                    context=deepmd_ctx,
+                                    deepmd_app=not_none(deepmd_executor.apps.deepmd),
+                                    python_app=not_none(deepmd_executor.apps.python),
                                     runtime=deepmd_runtime)
         else:
             raise ValueError('No training app specified')

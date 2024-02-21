@@ -123,7 +123,7 @@ def create_hpc_dispatcher(config: HpcConfig, resource: Resource) -> DispatcherEx
 
 class BaseApp(BaseModel):
     resource: Resource
-    setup_script: Optional[str] = None
+    setup_script: str = ''
 
 
 class PythonApp(BaseApp):

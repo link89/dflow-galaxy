@@ -9,7 +9,6 @@ from .domain import (
 )
 
 
-
 class GeneralConfig(BaseModel):
     type_map: List[str]
     mass_map: List[str]
@@ -18,13 +17,12 @@ class GeneralConfig(BaseModel):
 
 class AppsConfig(BaseModel):
     python: dispatcher.PythonApp
-    deepmd: Optional['deepmd.DeepmdContext'] = None
+    deepmd: Optional['deepmd.DeepmdApp'] = None
     lammps: Optional['lammps.LammpsContext'] = None
     cp2k: Optional['cp2k.Cp2kContext'] = None
 
 
 class Orchestration(BaseModel):
-    python: str
     deepmd: Optional[str] = None
     lammps: Optional[str] = None
     cp2k: Optional[str] = None

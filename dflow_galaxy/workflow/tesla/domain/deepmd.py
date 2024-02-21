@@ -7,13 +7,13 @@ from ai2_kit.core.util import cmd_with_checkpoint
 from ai2_kit.domain import constant
 
 from dflow_galaxy.core.pydantic import BaseModel
-from dflow_galaxy.core.dispatcher import BaseApp
+from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
 
 
-class DeepmdContext(BaseApp):
+class DeepmdApp(BaseApp):
     dp_cmd: str = 'dp'
     concurrency: int = 4
 
@@ -132,11 +132,15 @@ class RunDeepmdTrainingFn:
 
 def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                      config: DeepmdConfig,
-                     context: DeepmdContext,
+                     executor: ExecutorConfig,
+                     deepmd_app: DeepmdApp,
+                     python_app: PythonApp,
                      runtime: DeepmdRuntime):
 
     setup_task_fn = SetupDeepmdTaskFn(config, runtime.type_map)
-    setup_task_step = builder.make_python_step(setup_task_fn)(
+    setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
+                                               setup_script=python_app.setup_script,
+                                               executor=create_dispatcher(executor, python_app.resource))(
         SetupDeepmdTasksArgs(
             init_dataset=runtime.init_dataset_url,
             output_dir=runtime.base_url,
@@ -144,10 +148,12 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
     )
     run_training_fn = RunDeepmdTrainingFn(
         config=config,
-        concurrency=context.concurrency,
-        dp_cmd=context.dp_cmd,
+        concurrency=deepmd_app.concurrency,
+        dp_cmd=deepmd_app.dp_cmd,
     )
-    run_training_step = builder.make_bash_step(run_training_fn)(
+    run_training_step = builder.make_bash_step(run_training_fn, uid=f'{ns}-run-training',
+                                               setup_script=deepmd_app.setup_script,
+                                               executor=create_dispatcher(executor, deepmd_app.resource))(
         RunDeepmdTrainingArgs(
             task_index=0,
             task_dir=setup_task_step.args.output_dir,
@@ -159,4 +165,3 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
         setup_task_step,
         run_training_step,
     ])
-

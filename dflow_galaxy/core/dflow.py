@@ -406,6 +406,7 @@ class DFlowBuilder:
         self.workflow.wait()
 
     def make_bash_step(self, fn: Callable[[T_ARGS], types.ListStr], /,
+                       uid: Optional[str] = None,
                        setup_script: str = '',
                        with_param: Any = None,
                        executor: Optional[DispatcherExecutor] = None,
@@ -418,7 +419,8 @@ class DFlowBuilder:
         :param setup_script: The bash script to run at the beginning of the step.
         :return: A function to run the step.
         """
-        uid = str(uuid4())
+        if uid is None:
+            uid = str(uuid4())
         if not setup_script:
             setup_script = self._default_setup_script
         def wrapped_fn(args: T_ARGS):
@@ -429,6 +431,7 @@ class DFlowBuilder:
         return wrapped_fn
 
     def make_python_step(self, fn: Callable[[T_ARGS], T_RESULT], /,
+                         uid: Optional[str] = None,
                          setup_script: str = '',
                          with_param: Any = None,
                          pkgs: Optional[Iterable[str]] = None,
@@ -447,7 +450,8 @@ class DFlowBuilder:
         for each step a dedicated template have to be created.
         Ref: https://github.com/argoproj/argo-workflows/discussions/12606#discussioncomment-8358302
         """
-        uid = str(uuid4())
+        if uid is None:
+            uid = str(uuid4())
         if pkgs is None:
             pkgs = ['dflow_galaxy']
         if not setup_script:
@@ -455,7 +459,7 @@ class DFlowBuilder:
 
         def wrapped_fn(args: T_ARGS):
             template = self._create_python_template(fn, uid=uid, pkgs=pkgs, setup_script=setup_script)
-            return self._build_step('python-step-' + uid, args, template,
+            return self._build_step('py-step-' + uid, args, template,
                                     with_param=with_param,
                                     executor=executor)
         return wrapped_fn
@@ -487,7 +491,7 @@ class DFlowBuilder:
                                           setup_script=setup_script)
         fn_hash = hashlib.sha256(_template.fn_str.encode()).hexdigest()
         dflow_template = ScriptOPTemplate(
-            name='python-template-' + uid,
+            name='py-template-' + uid,
             command=bash_cmd,
             script=_template.source,
         )
