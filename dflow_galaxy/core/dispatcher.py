@@ -11,12 +11,14 @@ class Resource(BaseModel):
     sub_path: str = '.'
 
     nodes: int = 1
-    ntasks_per_node: int = 1
+    cpu_per_node: int = 1
+    gpu_per_node: int = 0
 
     def get_resource_dict(self):
         return {
             'number_node': self.nodes,
-            'cpu_per_node': self.ntasks_per_node,
+            'cpu_per_node': self.cpu_per_node,
+            'gpu_per_node': self.gpu_per_node,
         }
 
 

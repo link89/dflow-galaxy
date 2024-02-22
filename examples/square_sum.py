@@ -84,7 +84,7 @@ def main():
             queue='c52-small',
             sub_path='./square-sum',
             nodes=1,
-            ntasks_per_node=1,
+            cpu_per_node=1,
         )
         executor = dispatcher.create_hpc_dispatcher(hpc_config, resource)
         extra_kwargs['default_executor'] = executor

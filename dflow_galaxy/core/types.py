@@ -1,4 +1,4 @@
-from typing import TypeVar, Annotated, Union, List
+from typing import TypeVar, Annotated, Union, List, Literal
 from enum import IntEnum, auto
 
 T = TypeVar('T')
@@ -16,3 +16,5 @@ OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 
 
 ListStr = Union[List[str], str]
+
+IterIndex = InputParam[Union[int, Literal['{{item}}']]]

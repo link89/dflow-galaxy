@@ -323,7 +323,7 @@ def python_build_template(py_fn: Callable,
 
 def _s3_debug_fn(src, *args, **kwargs):
     if os.path.isdir(src):
-        shutil.copytree(src, *args, **kwargs)
+        shutil.copytree(src, *args, dirs_exist_ok=True, **kwargs)
     else:
         shutil.copy2(src, *args, **kwargs)
 
@@ -471,7 +471,7 @@ class DFlowBuilder:
         if uid is None:
             uid = str(uuid4())
         if pkgs is None:
-            pkgs = ['dflow_galaxy', 'dflow', 'ai2_kit']
+            pkgs = ['dflow_galaxy', 'dflow', 'ai2_kit', 'jsonpickle']
         if not setup_script:
             setup_script = self._default_setup_script
 

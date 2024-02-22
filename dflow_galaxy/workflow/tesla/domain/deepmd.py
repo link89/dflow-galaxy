@@ -82,7 +82,7 @@ class SetupDeepmdTaskFn:
 
 @dataclass(frozen=True)
 class RunDeepmdTrainingArgs:
-    task_index: types.InputParam[int]
+    iter_index: types.IterIndex
     init_dataset: types.InputArtifact
 
     work_dir: types.InputArtifact
@@ -103,7 +103,7 @@ class RunDeepmdTrainingFn:
         script = [
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
-                '*/', opt='-d', n=self.c, i=args.task_index, it_var='ITEM',
+                '*/', opt='-d', n=self.c, i=args.iter_index, it_var='ITEM',
                 script=[
                     '# dp train',
                     'pushd $ITEM',
@@ -146,6 +146,8 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                      python_app: PythonApp,
                      runtime: DeepmdRuntime):
 
+    from dflow import argo_range
+
     setup_task_fn = SetupDeepmdTaskFn(config, runtime.type_map)
     setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
                                                setup_script=python_app.setup_script,
@@ -162,9 +164,10 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
     )
     run_training_step = builder.make_bash_step(run_training_fn, uid=f'{ns}-run-training',
                                                setup_script=deepmd_app.setup_script,
+                                               with_param=argo_range(deepmd_app.concurrency),
                                                executor=create_dispatcher(executor, deepmd_app.resource))(
         RunDeepmdTrainingArgs(
-            task_index=0,
+            iter_index="{{item}}",
             init_dataset=runtime.init_dataset_url,
             work_dir=runtime.workspace_url,
             output_dir=runtime.workspace_url,

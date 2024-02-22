@@ -2,7 +2,7 @@ from typing import Optional, TypeVar
 from ai2_kit.core.util import list_split
 import os
 
-from .types import ListStr
+from .types import ListStr, IterIndex
 
 T = TypeVar('T')
 
@@ -31,7 +31,7 @@ def select_chunk(in_list: list, n: int, i: int):
     return list_split(sorted(in_list), n)[i]
 
 
-def bash_iter_ls_slice(search_pattern: str, /, n: int, i: int, script: ListStr, opt: str = '',
+def bash_iter_ls_slice(search_pattern: str, /, n: int, i: IterIndex, script: ListStr, opt: str = '',
                        it_var='ITEM', python_cmd: str = 'python'):
     """
     Generate a bash snippet to slice the result of `ls` command,
@@ -63,7 +63,7 @@ def bash_iter_var(in_var: str, script: ListStr, it_var='ITEM'):
 done <<< "${in_var}" """
 
 
-def bash_slice(in_var: str, n: int, i: int, out_var: str,
+def bash_slice(in_var: str, n: int, i: IterIndex, out_var: str,
                python_cmd: str = 'python'):
     """
     Generate a bash snippet to slice a multi-line string variable
