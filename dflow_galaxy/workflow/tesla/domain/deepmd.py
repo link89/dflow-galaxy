@@ -63,7 +63,7 @@ class SetupDeepmdTaskFn:
     def __call__(self, args: SetupDeepmdTasksArgs):
         # dflow didn't provide a unified file namespace,
         # so we have to lind to a fixed path and use relative path to access the dataset
-        os.system(f'ln -s {args.init_dataset} {INIT_DATASET_DIR}')
+        os.system(f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}')
         train_dataset_dirs = glob.glob(f'{INIT_DATASET_DIR}/*')
 
         make_deepmd_task_dirs(input_template=self.config.input_template,
@@ -107,7 +107,7 @@ class RunDeepmdTrainingFn:
                 script=[
                     '# dp train',
                     'pushd $ITEM',
-                    f'ln -s {args.init_dataset} {INIT_DATASET_DIR}',
+                    f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}',
                     'mv out/*.done . || true  # recover checkpoint',
                     self._build_dp_train_script(),
                     '',

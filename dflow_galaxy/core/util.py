@@ -44,9 +44,9 @@ def bash_iter_ls_slice(search_pattern: str, /, n: int, i: int, script: ListStr, 
     :param it_var: variable name for each item
     """
     return '\n'.join([
-        f'LS_RESULT=$(ls -1 {opt} {search_pattern} | sort)',
-        bash_slice(in_var='LS_RESULT', n=n, i=i, out_var='LS_CHUNK', python_cmd=python_cmd),
-        bash_iter_var(in_var='LS_CHUNK', script=script, it_var=it_var),
+        f'_LS_RESULT=$(ls -1 {opt} {search_pattern} | sort)',
+        bash_slice(in_var='_LS_RESULT', n=n, i=i, out_var='_LS_CHUNK', python_cmd=python_cmd),
+        bash_iter_var(in_var='_LS_CHUNK', script=script, it_var=it_var),
     ])
 
 
@@ -74,12 +74,13 @@ def bash_slice(in_var: str, n: int, i: int, out_var: str,
     :param i: chunk index
     :param out_var: variable name to store the selected chunk
     """
-    return f"""# bash_slice({in_var}, {n}, {i}, {out_var}):
-{out_var}=$(IN_DATA="${in_var}" {python_cmd} << EOF
+    return f"""echo 'bash_slice({in_var}, {n}, {i}, {out_var})'
+{out_var}=$(_IN_DATA="${in_var}" _SLICE_N={n} _SLICE_I={i} {python_cmd} << EOF
 import sys,os
-lines = os.environ['IN_DATA'].split('\\n')
+lines = os.environ['_IN_DATA'].split('\\n')
+n = int(os.environ['_SLICE_N'])
+i = int(os.environ['_SLICE_I'])
 lines = [line for line in lines if line.strip()]
-n, i = {n}, {i}
 chunk_size = max(1, len(lines) // n)
 
 start = i * chunk_size
@@ -87,4 +88,4 @@ end = (i + 1) * chunk_size if i < n - 1 else len(lines)
 sys.stdout.write('\\n'.join(lines[start:end]))
 EOF
 )
-# bash_slice end"""
+echo 'bash_slice end' """

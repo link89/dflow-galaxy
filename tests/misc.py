@@ -19,6 +19,13 @@ class TestMisc(unittest.TestCase):
 
         self.assertEqual(sig1, sig2)
 
+    def test_url_parse(self):
+        from urllib.parse import urlparse
+        url1 = urlparse('s3:///path/to/file')
+        url2 = urlparse('s3://./path/to/file')
+        print(url1, url2)
+
+
 
 if __name__ == '__main__':
     unittest.main()

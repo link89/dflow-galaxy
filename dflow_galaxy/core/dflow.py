@@ -147,9 +147,10 @@ def bash_build_template(py_fn: Callable,
             # input parameter can be a multiline string
             bash_name = f'_DF_INPUT_PARAMETER_{f.name}_'
             source.extend([
-                f"read -r -d '' {bash_name} << {eof}",
+                f"{bash_name}=$(cat << {eof}",
                 f"{{{{inputs.parameters.{f.name}}}}}",
                 eof,
+                ')',
             ])
             dflow_input_parameters[f.name] = dflow.InputParameter(name=f.name)
             args_dict[f.name] = f'${bash_name}'
@@ -370,10 +371,8 @@ class DFlowBuilder:
         self._local_mode = local_mode
 
     def s3_prefix(self, key: str):
-        return os.path.join(self.s3_base_prefix, key)
+        return os.path.join(self.s3_base_prefix, key).strip('/ ')
 
-    def s3_url(self, key: str):
-        return f's3://{self.s3_prefix(key)}'
 
     def s3_upload(self, path: Union[os.PathLike, str], key: str, cache: bool = False) -> str:
         """
@@ -563,7 +562,9 @@ class DFlowBuilder:
             return url_or_obj
         parsed = urlparse(url_or_obj)
         if parsed.scheme == 's3':
-            key = os.path.join(self.s3_base_prefix, parsed.path.lstrip('/'))
+            key = parsed.path.lstrip('/')
+            if '.' == parsed.netloc:
+                key = os.path.join(self.s3_base_prefix, key)
             if self._debug:
                 key = os.path.abspath(key)
             return dflow.S3Artifact(key=key)
