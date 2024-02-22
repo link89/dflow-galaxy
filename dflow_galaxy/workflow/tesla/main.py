@@ -1,4 +1,4 @@
-from typing import Mapping, List
+from typing import Optional
 
 from ai2_kit.core.util import load_yaml_files
 from ai2_kit.core.cmd import CmdGroup
@@ -9,6 +9,11 @@ from dflow_galaxy.core.util import not_none
 
 from .config import TeslaConfig
 from .domain import deepmd, lammps
+
+
+class RuntimeContext:
+    mlp_model_url: Optional[str]
+
 
 
 
@@ -24,6 +29,8 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
     mass_map = config.workflow.general.mass_map
     max_iter = config.workflow.general.max_iters
 
+    runtime_ctx = RuntimeContext()
+
 
     for iter_num in range(max_iter):
         iter_str = f'{iter_num:03d}'
@@ -35,6 +42,9 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
             for ds_key in deepmd_cfg.init_dataset:
                 ds = not_none(config.datasets[ds_key])
                 builder.s3_upload(ds.url, f'init-dataset/{ds_key}', cache=True)  # set cache to avoid re-upload
+
+            runtime_ctx.mlp_model_url = f's3://./train-deepmd/iter/{iter_str}'
+
             deepmd.deepmd_provision(builder, f'train-deepmd-iter-{iter_str}',
                                     config=deepmd_cfg,
                                     executor=deepmd_executor,
@@ -43,8 +53,9 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
 
                                     init_dataset_url='s3://./init-dataset',
                                     iter_dataset_url='s3://./iter-dataset',
-                                    work_dir_url=f's3://./train-deepmd/iter/{iter_str}',
+                                    work_dir_url=runtime_ctx.mlp_model_url,
                                     type_map=type_map)
+
         else:
             raise ValueError('No training app specified')
 
@@ -52,7 +63,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
         lammps_cfg = config.workflow.explore.lammps
         if lammps_cfg:
             lammps_executor = not_none(config.executors[not_none(config.orchestration.lammps)])
-            for sys_key in lammps_cfg.dataset:
+            for sys_key in lammps_cfg.systems:
                 sys = not_none(config.datasets[sys_key])
                 builder.s3_upload(sys.url, f'explore-dataset/{sys_key}', cache=True)
             lammps.lammps_provision(builder, f'explore-lammps-iter-{iter_str}',
@@ -61,6 +72,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
                                     lammps_app=not_none(lammps_executor.apps.lammps),
                                     python_app=not_none(lammps_executor.apps.python),
 
+                                    mlp_model_url=runtime_ctx.mlp_model_url,
                                     dataset_url='s3://./explore-dataset',
                                     work_dir_url=f's3://./explore-lammps/iter/{iter_str}',
                                     type_map=type_map,

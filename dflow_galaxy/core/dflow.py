@@ -353,7 +353,7 @@ class DFlowBuilder:
             dflow.config['mode'] = 'debug'
             s3_prefix = s3_prefix.lstrip('/')
 
-        assert container_base_dir.startswith('/tmp'), 'dflow: container_base_dir must be a subdirectory of /tmp'
+        assert container_base_dir.startswith('/tmp'), 'dflow: container_base_dir must start with /tmp'
 
         self.name: Final[str] = name
         self.workflow: Final[dflow.Workflow] = dflow.Workflow(name=name)
@@ -372,7 +372,6 @@ class DFlowBuilder:
 
     def s3_prefix(self, key: str):
         return os.path.join(self.s3_base_prefix, key).strip('/ ')
-
 
     def s3_upload(self, path: Union[os.PathLike, str], key: str, cache: bool = False) -> str:
         """

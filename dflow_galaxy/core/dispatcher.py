@@ -114,6 +114,7 @@ def create_hpc_dispatcher(config: HpcConfig, resource: Resource):
 
     return DispatcherExecutor(
         host=url.hostname or 'localhost',
+        private_key_file=config.key_file,  # type: ignore
         username=url.username,
         port=url.port or 22,
         clean=config.clean,

@@ -1,5 +1,6 @@
 from typing import List, Optional, Mapping, Any, Literal
 from dataclasses import dataclass
+import os
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
@@ -10,13 +11,17 @@ from dflow_galaxy.core import types
 from ai2_kit.domain.lammps import make_lammps_task_dirs
 
 
+MODEL_DIR = './mlp-model'
+SYSTEM_DIR = './system-dataset'
+
+
 class LammpsApp(BaseApp):
     lammps_cmd: str = 'lmp'
     concurrency: int = 5
 
 
 class LammpsConfig(BaseModel):
-    dataset: List[str]
+    systems: List[str]
 
     nsteps: int
     no_pbc: bool = False
@@ -43,6 +48,7 @@ class LammpsConfig(BaseModel):
 @dataclass(frozen=True)
 class SetupLammpsTasksArgs:
     model_dir: types.InputArtifact
+    system_dir: types.InputArtifact
 
     work_dir: types.OutputArtifact
     data_dir: types.OutputArtifact
@@ -56,7 +62,13 @@ class SetupLammpsTaskFn:
 
 
     def __call__(self, args: SetupLammpsTasksArgs):
-        # TODO: handle data_files and dp_models
+
+        # dflow didn't provide a unified file namespace,
+        # so we have to link dataset to a fixed path and use relative path to access it
+        os.system(f'ln -sf {args.model_dir} {MODEL_DIR}')
+        os.system(f'ln -sf {args.system_dir} {SYSTEM_DIR}')
+
+        data_file_paths = [ k for k in self.config.systems]
 
 
 
@@ -113,6 +125,7 @@ def lammps_provision(builder: DFlowBuilder, ns: str, /,
                      python_app: PythonApp,
 
                      dataset_url: str,
+                     mlp_model_url: str,
                      work_dir_url: str,
                      type_map: List[str],
                      mass_map: List[float],
