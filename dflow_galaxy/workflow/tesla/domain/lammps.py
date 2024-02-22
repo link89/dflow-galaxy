@@ -7,12 +7,13 @@ import os
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice
+from dflow_galaxy.core.util import bash_iter_ls_slice, get_ln_cmd
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
 from ai2_kit.domain.constant import DP_FROZEN_MODEL
 from ai2_kit.core.artifact import Artifact
+from ai2_kit.core.connector import safe_basename
 
 
 from .lib import resolve_artifact
@@ -70,21 +71,21 @@ class SetupLammpsTaskFn:
         self.systems = systems
 
     def __call__(self, args: SetupLammpsTasksArgs):
-
         # dflow didn't provide a unified file namespace,
         # so we have to link dataset to a fixed path and use relative path to access it
-        os.system(f'ln -sf {args.model_dir} {MODEL_DIR}')
-        os.system(f'ln -sf {args.system_dir} {SYSTEM_DIR}')
+        os.system(get_ln_cmd(args.model_dir, MODEL_DIR))
+        os.system(get_ln_cmd(args.system_dir, SYSTEM_DIR))
 
         # remap path of input data
         data_files = []
-        for k, v in self.systems.items():
-            v = deepcopy(v)  # avoid side effect
+        for k in self.config.systems:
+            v = deepcopy(self.systems[k])  # avoid side effect
             v.url = f'{SYSTEM_DIR}/{k}'
             data_files.extend(resolve_artifact(v))
 
         # map model files
         model_files = glob.glob(f'{MODEL_DIR}/**/{DP_FROZEN_MODEL}', recursive=True)
+        print(model_files)
 
         make_lammps_task_dirs(
             combination_vars=self.config.product_vars,
@@ -153,3 +154,5 @@ def lammps_provision(builder: DFlowBuilder, ns: str, /,
             work_dir=work_dir_url,
         )
     )
+
+    builder.add_step(setup_task_step)

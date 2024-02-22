@@ -1,6 +1,8 @@
 from typing import Optional, TypeVar
 from ai2_kit.core.util import list_split
+import shlex
 import os
+
 
 from .types import ListStr, SliceIndex
 
@@ -24,6 +26,22 @@ def ensure_str(s: ListStr):
     if isinstance(s, list):
         return '\n'.join(s)
     return s
+
+
+def get_ln_cmd(from_path: str, to_path: str):
+    """
+    The reason to `rm -d` to_path is to workaround the limit of ln.
+    `ln` command cannot override existed directory,
+    so we need to ensure to_path is not existed.
+    Here we use -d option instead of -rf to avoid remove directory with content.
+    The error of `rm -d` is suppressed as it will fail when to_path is file.
+    `-T` option of `ln` is used to avoid some unexpected result.
+    """
+    to_path = os.path.normpath(to_path)
+    return 'rm -d {to_path} || true && ln -sfT {from_path} {to_path}'.format(
+        from_path=shlex.quote(from_path),
+        to_path=shlex.quote(to_path)
+    )
 
 
 def select_chunk(in_list: list, n: int, i: int):

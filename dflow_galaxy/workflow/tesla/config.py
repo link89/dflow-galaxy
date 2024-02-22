@@ -35,15 +35,15 @@ class LabelConfig(BaseModel):
 
 
 class TrainConfig(BaseModel):
-    deepmd: deepmd.DeepmdConfig
+    deepmd: Optional['deepmd.DeepmdConfig']
 
 
 class ExploreConfig(BaseModel):
-    lammps: lammps.LammpsConfig
+    lammps: Optional['lammps.LammpsConfig']
 
 
 class ScreenConfig(BaseModel):
-    model_devi: model_devi.ModelDeviConfig
+    model_devi: Optional['model_devi.ModelDeviConfig']
 
 
 class WorkflowConfig(BaseModel):
@@ -59,3 +59,8 @@ class TeslaConfig(BaseModel):
     orchestration: Orchestration
     datasets: Mapping[str, Artifact]
     workflow: WorkflowConfig
+
+    def init(self):
+        for k, v in self.datasets.items():
+            assert 'ancestor' not in v.attrs, f'ancestor already exists: {v.attrs}'
+            v.attrs['ancestor'] = k

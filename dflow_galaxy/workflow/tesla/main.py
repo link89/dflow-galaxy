@@ -23,6 +23,8 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
     builder = DFlowBuilder(name='tesla', s3_prefix=s3_prefix, debug=debug)
 
     config = TeslaConfig(**config_raw)
+    config.init()
+
 
     type_map = config.workflow.general.type_map
     mass_map = config.workflow.general.mass_map
