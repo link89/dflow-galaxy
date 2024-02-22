@@ -32,6 +32,7 @@ class DeepmdConfig(BaseModel):
 class DeepmdRuntime:
     workspace_url: str
     init_dataset_url: str
+    iter_dataset_url: str
     type_map: List[str]
 
 
@@ -52,6 +53,7 @@ class UpdateNewTrainingDatasetStep:
 @dataclass(frozen=True)
 class SetupDeepmdTasksArgs:
     init_dataset: types.InputArtifact
+    iter_dataset: types.InputArtifact
     output_dir: types.OutputArtifact
 
 
@@ -64,7 +66,10 @@ class SetupDeepmdTaskFn:
         # dflow didn't provide a unified file namespace,
         # so we have to lind to a fixed path and use relative path to access the dataset
         os.system(f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}')
-        train_dataset_dirs = glob.glob(f'{INIT_DATASET_DIR}/*')
+        os.system(f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}')
+
+        # TODO: handle iter dataset
+        train_dataset_dirs = [ f'{INIT_DATASET_DIR}/{ds}' for ds in self.config.init_dataset]
 
         make_deepmd_task_dirs(input_template=self.config.input_template,
                               model_num=self.config.model_num,
@@ -82,8 +87,10 @@ class SetupDeepmdTaskFn:
 
 @dataclass(frozen=True)
 class RunDeepmdTrainingArgs:
-    iter_index: types.InputParam[types.IterIndex]
+    slice_idx: types.InputParam[types.SliceIndex]
+
     init_dataset: types.InputArtifact
+    iter_dataset: types.InputArtifact
 
     work_dir: types.InputArtifact
     output_dir: types.OutputArtifact
@@ -103,11 +110,12 @@ class RunDeepmdTrainingFn:
         script = [
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
-                '*/', opt='-d', n=self.c, i=args.iter_index, it_var='ITEM',
+                '*/', opt='-d', n=self.c, i=args.slice_idx, it_var='ITEM',
                 script=[
                     '# dp train',
                     'pushd $ITEM',
                     f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}',
+                    f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}',
                     'mv out/*.done . || true  # recover checkpoint',
                     self._build_dp_train_script(),
                     '',
@@ -154,6 +162,7 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                                                executor=create_dispatcher(executor, python_app.resource))(
         SetupDeepmdTasksArgs(
             init_dataset=runtime.init_dataset_url,
+            iter_dataset=runtime.iter_dataset_url,
             output_dir=runtime.workspace_url,
         )
     )
@@ -167,8 +176,9 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                                                with_param=argo_range(deepmd_app.concurrency),
                                                executor=create_dispatcher(executor, deepmd_app.resource))(
         RunDeepmdTrainingArgs(
-            iter_index="{{item}}",
+            slice_idx="{{item}}",
             init_dataset=runtime.init_dataset_url,
+            iter_dataset=runtime.iter_dataset_url,
             work_dir=runtime.workspace_url,
             output_dir=runtime.workspace_url,
         )

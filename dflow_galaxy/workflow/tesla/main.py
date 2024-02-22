@@ -41,6 +41,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
             deepmd_runtime = deepmd.DeepmdRuntime(
                 workspace_url=f's3://./train-deepmd/iter/{iter_str}',
                 init_dataset_url='s3://./init-dataset',
+                iter_dataset_url='s3://./iter-dataset',
                 type_map=type_map,
             )
             deepmd.deepmd_provision(builder, f'train-deepmd-{iter_str}',
