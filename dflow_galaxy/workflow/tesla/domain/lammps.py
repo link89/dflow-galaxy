@@ -75,16 +75,17 @@ class SetupLammpsTaskFn:
         safe_ln(args.model_dir, MODEL_DIR)
         safe_ln(args.system_dir, SYSTEM_DIR)
 
-        # remap path of input data
+        # resolve input data
         data_files = []
         for k in self.config.systems:
             v = deepcopy(self.systems[k])  # avoid side effect
             v.url = f'{SYSTEM_DIR}/{k}'
             data_files.extend(resolve_artifact(v))
 
-        # map model files
-        model_files = glob.glob(f'{MODEL_DIR}/**/{DP_FROZEN_MODEL}', recursive=True)
-        print(model_files)
+        # resolve model files
+        search_pattern = f'{MODEL_DIR}/*/persist/{DP_FROZEN_MODEL}'
+        model_files = glob.glob(search_pattern)
+        assert model_files, f'no model files found in {search_pattern}'
 
         make_lammps_task_dirs(
             combination_vars=self.config.product_vars,
