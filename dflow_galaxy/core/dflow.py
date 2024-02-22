@@ -369,13 +369,16 @@ class DFlowBuilder:
     def s3_url(self, key: str):
         return f's3://{self.s3_prefix(key)}'
 
-    def s3_upload(self, path: os.PathLike, key: str, cache: bool = False) -> str:
+    def s3_upload(self, path: Union[os.PathLike, str], key: str, cache: bool = False) -> str:
         """
         upload local file to S3.
 
         :param path: The local file path.
         :param keys: The keys of the S3 object.
         """
+        if isinstance(path, str):
+            path = Path(path)
+
         prefix = self.s3_prefix(key)
         if cache and prefix in self._s3_cache:
             return self._s3_cache[prefix]

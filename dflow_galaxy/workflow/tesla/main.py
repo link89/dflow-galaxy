@@ -28,22 +28,19 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
     for iter_num in range(max_iter):
         iter_str = f'{iter_num:02d}'
 
-
         # training
         deepmd_cfg = config.workflow.train.deepmd
         if deepmd_cfg:
             deepmd_executor = not_none(config.executors[not_none(config.orchestration.deepmd)])
 
-
-
-            if iter_num == 0:
-                ...
-
-
+            # upload init dataset
+            for ds_key in deepmd_cfg.init_dataset:
+                ds = not_none(config.datasets[ds_key])
+                builder.s3_upload(ds.url, f'init-dataset/{ds_key}', cache=True)  # set cache to avoid re-upload
 
             deepmd_runtime = deepmd.DeepmdRuntime(
-                base_url=builder.s3_base_prefix(),
-                init_dataset_url='',
+                base_url=builder.s3_url(f'train-deepmd/{iter_str}'),
+                init_dataset_url=builder.s3_url('init-dataset'),
                 type_map=type_map,
             )
             deepmd.deepmd_provision(builder, f'train-deepmd-{iter_str}',
