@@ -1,6 +1,7 @@
 from typing import List, Mapping, Optional
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core import dispatcher
+from ai2_kit.core.artifact import Artifact
 
 from .domain import (
     deepmd,
@@ -59,6 +60,6 @@ class WorkflowConfig(BaseModel):
 class TeslaConfig(BaseModel):
     executors: Mapping[str, TeslaExecutorConfig]
     orchestration: Orchestration
-    datasets: Mapping[str, str]
+    datasets: Mapping[str, Artifact]
     workflow: WorkflowConfig
 

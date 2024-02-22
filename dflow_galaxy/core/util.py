@@ -15,7 +15,8 @@ def ensure_dirname(path: str):
 
 
 def not_none(v: Optional[T], msg: str = '') -> T:
-    assert v is not None, msg
+    if v is None:
+        raise ValueError(msg)
     return v
 
 

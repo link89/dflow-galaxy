@@ -350,7 +350,7 @@ class DFlowBuilder:
 
         self.name: Final[str] = name
         self.workflow: Final[dflow.Workflow] = dflow.Workflow(name=name)
-        self.s3_prefix: Final[str] = s3_prefix
+        self.s3_base_prefix: Final[str] = s3_prefix
         self.container_base_dir: Final[str] = container_base_dir
 
         self._default_executor = default_executor
@@ -358,21 +358,31 @@ class DFlowBuilder:
         self._python_fns: Dict[Callable, str] = {}
         self._python_pkgs: Dict[str, str] = {}
         self._bash_scripts: Dict[Callable, str] = {}
+        self._s3_cache: Dict[str, str] = {}
         self._s3_debug_fn = s3_debug_fn
         self._debug = debug
         self._local_mode = local_mode
 
-    def s3_upload(self, path: os.PathLike, *keys: str) -> str:
+    def s3_prefix(self, key: str):
+        return os.path.join(self.s3_base_prefix, key)
+
+    def s3_url(self, key: str):
+        return f's3://{self.s3_prefix(key)}'
+
+    def s3_upload(self, path: os.PathLike, key: str, cache: bool = False) -> str:
         """
         upload local file to S3.
 
         :param path: The local file path.
         :param keys: The keys of the S3 object.
         """
-        key = self._s3_get_key(*keys)
-        return dflow.upload_s3(path, key, debug_func=self._s3_debug_fn)
+        prefix = self.s3_prefix(key)
+        if cache and prefix in self._s3_cache:
+            return self._s3_cache[prefix]
+        self._s3_cache[prefix] = dflow.upload_s3(path, prefix, debug_func=self._s3_debug_fn)
+        return self._s3_cache[prefix]
 
-    def s3_dump(self, data: Union[bytes, str], *keys: str) -> str:
+    def s3_dump(self, data: Union[bytes, str], key: str) -> str:
         """
         Dump data to s3.
 
@@ -383,7 +393,7 @@ class DFlowBuilder:
         with tempfile.NamedTemporaryFile(mode) as fp:
             fp.write(data)
             fp.flush()
-            return self.s3_upload(Path(fp.name), *keys)
+            return self.s3_upload(Path(fp.name), key)
 
     def add_step(self, step: Step):
         """
@@ -534,20 +544,17 @@ class DFlowBuilder:
                 with tarfile.open(fp.name, 'w:bz2') as tar_fp:
                     tar_fp.add(pkg_path, arcname=os.path.basename(pkg_path), filter=_filter_pyc_files)
                 fp.flush()
-                key = self.s3_upload(Path(fp.name), 'build-in/python/pkg', f'{pkg}.tar.bz2')
+                key = self.s3_upload(Path(fp.name), f'build-in/python/pkg/{pkg}.tar.bz2')
                 logger.info(f'upload python pkg {pkg} to {key}')
                 self._python_pkgs[pkg] = key
         return self._python_pkgs[pkg]
-
-    def _s3_get_key(self, *keys: str):
-        return os.path.join(self.s3_prefix, *keys)
 
     def _ensure_artifact(self, url_or_obj: DFLOW_ARTIFACT) -> DFLOW_ARTIFACT:
         if not isinstance(url_or_obj, str):
             return url_or_obj
         parsed = urlparse(url_or_obj)
         if parsed.scheme == 's3':
-            key = os.path.join(self.s3_prefix, parsed.path.lstrip('/'))
+            key = os.path.join(self.s3_base_prefix, parsed.path.lstrip('/'))
             if self._debug:
                 key = os.path.abspath(key)
             return dflow.S3Artifact(key=key)
