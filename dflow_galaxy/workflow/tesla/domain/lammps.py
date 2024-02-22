@@ -1,5 +1,7 @@
 from typing import List, Optional, Mapping, Any, Literal
 from dataclasses import dataclass
+from copy import deepcopy
+import glob
 import os
 
 from dflow_galaxy.core.pydantic import BaseModel
@@ -9,6 +11,11 @@ from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
+from ai2_kit.domain.constant import DP_FROZEN_MODEL
+from ai2_kit.core.artifact import Artifact
+
+
+from .lib import resolve_artifact
 
 
 MODEL_DIR = './mlp-model'
@@ -49,17 +56,18 @@ class LammpsConfig(BaseModel):
 class SetupLammpsTasksArgs:
     model_dir: types.InputArtifact
     system_dir: types.InputArtifact
-
     work_dir: types.OutputArtifact
-    data_dir: types.OutputArtifact
 
 
 class SetupLammpsTaskFn:
-    def __init__(self, config: LammpsConfig, type_map: List[str], mass_map: List[float]):
+    def __init__(self, config: LammpsConfig,
+                 type_map: List[str],
+                 mass_map: List[float],
+                 systems: Mapping[str, Artifact]):
         self.config = config
         self.type_map = type_map
         self.mass_map = mass_map
-
+        self.systems = systems
 
     def __call__(self, args: SetupLammpsTasksArgs):
 
@@ -68,15 +76,21 @@ class SetupLammpsTaskFn:
         os.system(f'ln -sf {args.model_dir} {MODEL_DIR}')
         os.system(f'ln -sf {args.system_dir} {SYSTEM_DIR}')
 
-        data_file_paths = [ k for k in self.config.systems]
+        # remap path of input data
+        data_files = []
+        for k, v in self.systems.items():
+            v = deepcopy(v)  # avoid side effect
+            v.url = f'{SYSTEM_DIR}/{k}'
+            data_files.extend(resolve_artifact(v))
 
-
+        # map model files
+        model_files = glob.glob(f'{MODEL_DIR}/**/{DP_FROZEN_MODEL}', recursive=True)
 
         make_lammps_task_dirs(
             combination_vars=self.config.product_vars,
             broadcast_vars=self.config.broadcast_vars,
-            data_files=[], # TODO
-            dp_models={}, # TODO
+            data_files=data_files,
+            dp_models={'': model_files},
             n_steps=self.config.nsteps,
             timestep=self.config.timestep,
             sample_freq=self.config.sample_freq,
@@ -87,8 +101,7 @@ class SetupLammpsTaskFn:
             extra_template_vars=self.config.template_vars,
             type_map=self.type_map,
             mass_map=self.mass_map,
-
-            work_dir='', # TODO
+            work_dir=args.work_dir,
 
             # TODO: support more feature in the future
             mode='default',
@@ -105,7 +118,6 @@ class SetupLammpsTaskFn:
 @dataclass(frozen=True)
 class RunLammpsTasksArgs:
     slice_idx: types.InputParam[types.SliceIndex]
-    data_dir: types.InputArtifact
     work_dir: types.InputArtifact
     persist_dir: types.OutputArtifact
 
@@ -124,10 +136,20 @@ def lammps_provision(builder: DFlowBuilder, ns: str, /,
                      lammps_app: LammpsApp,
                      python_app: PythonApp,
 
-                     dataset_url: str,
+                     systems_url: str,
                      mlp_model_url: str,
                      work_dir_url: str,
                      type_map: List[str],
                      mass_map: List[float],
+                     systems: Mapping[str, Artifact],
                      ):
-    ...
+    setup_task_fn = SetupLammpsTaskFn(config, type_map=type_map, mass_map=mass_map, systems=systems)
+    setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
+                                               setup_script=python_app.setup_script,
+                                               executor=create_dispatcher(executor, python_app.resource))(
+        SetupLammpsTasksArgs(
+            model_dir=mlp_model_url,
+            system_dir=systems_url,
+            work_dir=work_dir_url,
+        )
+    )

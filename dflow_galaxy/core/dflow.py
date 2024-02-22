@@ -336,7 +336,6 @@ class DFlowBuilder:
                  default_executor: Optional[DispatcherExecutor] = None,
                  default_setup_script: str = '',
                  debug=False,
-                 local_mode=False,
                  container_base_dir: str = '/tmp/dflow-builder',
                  s3_debug_fn = _s3_debug_fn):
         """
@@ -368,7 +367,6 @@ class DFlowBuilder:
         self._s3_cache: Dict[str, str] = {}
         self._s3_debug_fn = s3_debug_fn
         self._debug = debug
-        self._local_mode = local_mode
 
     def s3_prefix(self, key: str):
         return os.path.join(self.s3_base_prefix, key).strip('/ ')
@@ -562,6 +560,7 @@ class DFlowBuilder:
         parsed = urlparse(url_or_obj)
         if parsed.scheme == 's3':
             key = parsed.path.lstrip('/')
+            assert parsed.netloc in ('', '.')
             if '.' == parsed.netloc:
                 key = os.path.join(self.s3_base_prefix, key)
             if self._debug:
@@ -574,10 +573,6 @@ class DFlowBuilder:
                     executor: Optional[DispatcherExecutor] = None):
         if executor is None:
             executor = self._default_executor
-
-        if self._local_mode:
-            logger.info('ignore executor in debug mode')
-            executor = None
 
         parameters = {}
         artifacts = {}

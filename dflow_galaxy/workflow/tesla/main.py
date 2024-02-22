@@ -16,7 +16,6 @@ class RuntimeContext:
 
 
 
-
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
     # TODO: fix type issue in ai2-kit
     config_raw = load_yaml_files(*config_files)  # type: ignore
@@ -63,9 +62,11 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
         lammps_cfg = config.workflow.explore.lammps
         if lammps_cfg:
             lammps_executor = not_none(config.executors[not_none(config.orchestration.lammps)])
+
             for sys_key in lammps_cfg.systems:
                 sys = not_none(config.datasets[sys_key])
                 builder.s3_upload(sys.url, f'explore-dataset/{sys_key}', cache=True)
+
             lammps.lammps_provision(builder, f'explore-lammps-iter-{iter_str}',
                                     config=lammps_cfg,
                                     executor=lammps_executor,
@@ -73,10 +74,11 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
                                     python_app=not_none(lammps_executor.apps.python),
 
                                     mlp_model_url=runtime_ctx.mlp_model_url,
-                                    dataset_url='s3://./explore-dataset',
+                                    systems_url='s3://./explore-dataset',
                                     work_dir_url=f's3://./explore-lammps/iter/{iter_str}',
                                     type_map=type_map,
-                                    mass_map=mass_map)
+                                    mass_map=mass_map,
+                                    systems=config.datasets)
         else:
             raise ValueError('No explore app specified')
 
