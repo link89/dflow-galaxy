@@ -17,4 +17,4 @@ OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 
 ListStr = Union[List[str], str]
 
-IterIndex = InputParam[Union[int, Literal['{{item}}']]]
+IterIndex = Union[int, Literal['{{item}}']]

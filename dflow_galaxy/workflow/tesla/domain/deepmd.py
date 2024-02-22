@@ -82,7 +82,7 @@ class SetupDeepmdTaskFn:
 
 @dataclass(frozen=True)
 class RunDeepmdTrainingArgs:
-    iter_index: types.IterIndex
+    iter_index: types.InputParam[types.IterIndex]
     init_dataset: types.InputArtifact
 
     work_dir: types.InputArtifact
