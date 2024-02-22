@@ -5,7 +5,7 @@ import os
 
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
 from ai2_kit.core.util import cmd_with_checkpoint
-from ai2_kit.domain import constant
+from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_MODEL
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
@@ -54,6 +54,7 @@ class UpdateNewTrainingDatasetStep:
 class SetupDeepmdTasksArgs:
     init_dataset: types.InputArtifact
     iter_dataset: types.InputArtifact
+
     output_dir: types.OutputArtifact
 
 
@@ -114,17 +115,17 @@ class RunDeepmdTrainingFn:
                 script=[
                     '# dp train',
                     'pushd $ITEM',
+                    'mv out/*.done . || true  # recover checkpoint',
                     f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}',
                     f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}',
-                    'mv out/*.done . || true  # recover checkpoint',
                     self._build_dp_train_script(),
                     '',
                     '# move artifacts to output dir',
                     f'OUT_DIR={args.output_dir}/$ITEM/out/',
                     f'mkdir -p $OUT_DIR',
                     f'mv *.done $OUT_DIR',
-                    f'mv {constant.DP_FROZEN_MODEL} $OUT_DIR',
-                    f'mv {constant.DP_ORIGINAL_MODEL} $OUT_DIR || true',
+                    f'mv {DP_FROZEN_MODEL} $OUT_DIR',
+                    f'mv {DP_ORIGINAL_MODEL} $OUT_DIR || true',
                     'popd',
                 ]
             ),
@@ -133,17 +134,19 @@ class RunDeepmdTrainingFn:
         return script
 
     def _build_dp_train_script(self):
-        train_cmd = f'{self.dp_cmd} train {constant.DP_INPUT_FILE}'
+        train_cmd = f'{self.dp_cmd} train {DP_INPUT_FILE}'
         # TODO: handle restart, initialize from previous model, support pretrain model
         script = [
-            cmd_with_checkpoint(train_cmd, 'dp-train.done', False),
-            f'{self.dp_cmd} freeze -o {constant.DP_ORIGINAL_MODEL}',
+            cmd_with_checkpoint(train_cmd, 'dp-train.done'),
+            cmd_with_checkpoint(f'{self.dp_cmd} freeze -o {DP_ORIGINAL_MODEL}', 'dp-freeze.done'),
         ]
         # compress (optional) and frozen model
         if self.config.compress_model:
-            script.append(f'{self.dp_cmd} compress -i {constant.DP_ORIGINAL_MODEL} -o {constant.DP_FROZEN_MODEL}')
+            freeze_cmd = f'{self.dp_cmd} compress -i {DP_ORIGINAL_MODEL} -o {DP_FROZEN_MODEL}'
         else:
-            script.append(f'mv {constant.DP_ORIGINAL_MODEL} {constant.DP_FROZEN_MODEL}')
+            freeze_cmd = f'mv {DP_ORIGINAL_MODEL} {DP_FROZEN_MODEL}'
+        script.append(cmd_with_checkpoint(freeze_cmd, 'dp-compress.done'))
+
         return '\n'.join(script)
 
 
