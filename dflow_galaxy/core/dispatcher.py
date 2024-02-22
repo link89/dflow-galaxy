@@ -131,3 +131,4 @@ class BaseApp(BaseModel):
 
 class PythonApp(BaseApp):
     python_cmd: str = 'python3'
+    max_worker: int = 4

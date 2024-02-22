@@ -8,7 +8,6 @@ from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
 
 
-
 class LammpsApp(BaseApp):
     lammps_cmd: str = 'lmp'
     concurrency: int = 5
@@ -70,8 +69,6 @@ class RunLammpsTasksArgs:
     work_dir: types.InputArtifact
 
     persist_dir: types.OutputArtifact
-
-
 
 
 

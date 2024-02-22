@@ -3,11 +3,7 @@ from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core import dispatcher
 from ai2_kit.core.artifact import Artifact
 
-from .domain import (
-    deepmd,
-    lammps,
-    cp2k,
-)
+from .domain import deepmd, lammps, model_devi, cp2k
 
 
 class GeneralConfig(BaseModel):
@@ -26,6 +22,7 @@ class AppsConfig(BaseModel):
 class Orchestration(BaseModel):
     deepmd: Optional[str] = None
     lammps: Optional[str] = None
+    model_devi: Optional[str] = None
     cp2k: Optional[str] = None
 
 
@@ -42,11 +39,11 @@ class TrainConfig(BaseModel):
 
 
 class ExploreConfig(BaseModel):
-    ...
+    lammps: lammps.LammpsConfig
 
 
 class ScreenConfig(BaseModel):
-    ...
+    model_devi: model_devi.ModelDeviConfig
 
 
 class WorkflowConfig(BaseModel):
@@ -62,4 +59,3 @@ class TeslaConfig(BaseModel):
     orchestration: Orchestration
     datasets: Mapping[str, Artifact]
     workflow: WorkflowConfig
-

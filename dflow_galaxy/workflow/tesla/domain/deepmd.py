@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from typing import List, Dict
-import glob
+from typing import List
 import os
 
-from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
+from ai2_kit.domain.deepmd import make_deepmd_task_dirs
 from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp
 from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_MODEL
 
@@ -12,6 +11,9 @@ from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, 
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
+
+from dflow import argo_range
+
 
 INIT_DATASET_DIR = './init-dataset'
 ITER_DATASET_DIR = './iter-dataset'
@@ -65,7 +67,7 @@ class SetupDeepmdTaskFn:
 
     def __call__(self, args: SetupDeepmdTasksArgs):
         # dflow didn't provide a unified file namespace,
-        # so we have to lind to a fixed path and use relative path to access the dataset
+        # so we have to link dataset to a fixed path and use relative path to access it
         os.system(f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}')
         os.system(f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}')
 
@@ -106,26 +108,26 @@ class RunDeepmdTrainingFn:
 
     def __call__(self, args: RunDeepmdTrainingArgs):
         """generate bash script to run deepmd training commands"""
-        concurrency = self.context.concurrency
+        c = self.context.concurrency
 
         script = [
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
-                '*/', opt='-d', n=concurrency, i=args.slice_idx, it_var='ITEM',
+                '*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
                 script=[
                     '# dp train',
                     'pushd $ITEM',
-                    'mv out/* . || true  # recover checkpoint',
+                    'mv persist/* . || true  # recover checkpoint',
                     f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}',
                     f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}',
                     self._build_dp_train_script(),
                     '',
                     '# move artifacts to output dir',
-                    f'OUT_DIR={args.persist_dir}/$ITEM/out/',
-                    f'mkdir -p $OUT_DIR',
-                    f'mv *.done $OUT_DIR',
-                    f'mv {DP_FROZEN_MODEL} $OUT_DIR',
-                    f'mv {DP_ORIGINAL_MODEL} $OUT_DIR || true',
+                    f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
+                    'mkdir -p $PERSIST_DIR',
+                    'mv *.done $PERSIST_DIR',
+                    f'mv {DP_FROZEN_MODEL} $PERSIST_DIR',
+                    f'mv {DP_ORIGINAL_MODEL} $PERSIST_DIR || true',
                     'popd',
                 ]
             ),
@@ -157,7 +159,6 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                      deepmd_app: DeepmdApp,
                      python_app: PythonApp,
                      runtime: DeepmdRuntime):
-    from dflow import argo_range
 
     setup_task_fn = SetupDeepmdTaskFn(config, runtime.type_map)
     setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
