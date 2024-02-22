@@ -16,7 +16,7 @@ class TestTesla(unittest.TestCase):
             init_dataset='init-dataset',
             iter_index=0,
             work_dir='task_dir',
-            output_dir='output_dir',
+            persist_dir='output_dir',
         ))
         print(ensure_str(bash_script))
 

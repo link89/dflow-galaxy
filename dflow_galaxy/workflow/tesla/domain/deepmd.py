@@ -55,7 +55,7 @@ class SetupDeepmdTasksArgs:
     init_dataset: types.InputArtifact
     iter_dataset: types.InputArtifact
 
-    output_dir: types.OutputArtifact
+    work_dir: types.OutputArtifact
 
 
 class SetupDeepmdTaskFn:
@@ -76,7 +76,7 @@ class SetupDeepmdTaskFn:
                               model_num=self.config.model_num,
                               train_systems=train_dataset_dirs,
                               type_map=self.type_map,
-                              base_dir=args.output_dir,
+                              base_dir=args.work_dir,
                               # TODO: support the following parameters
                               isolate_outliers=False,
                               validation_systems=[],
@@ -94,34 +94,34 @@ class RunDeepmdTrainingArgs:
     iter_dataset: types.InputArtifact
 
     work_dir: types.InputArtifact
-    output_dir: types.OutputArtifact
+    persist_dir: types.OutputArtifact
 
 
 class RunDeepmdTrainingFn:
     def __init__(self,
                  config: DeepmdConfig,
-                 concurrency: int,
-                 dp_cmd: str,):
+                 context: DeepmdApp):
         self.config = config
-        self.c = concurrency
-        self.dp_cmd = dp_cmd
+        self.context = context
 
     def __call__(self, args: RunDeepmdTrainingArgs):
         """generate bash script to run deepmd training commands"""
+        concurrency = self.context.concurrency
+
         script = [
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
-                '*/', opt='-d', n=self.c, i=args.slice_idx, it_var='ITEM',
+                '*/', opt='-d', n=concurrency, i=args.slice_idx, it_var='ITEM',
                 script=[
                     '# dp train',
                     'pushd $ITEM',
-                    'mv out/*.done . || true  # recover checkpoint',
+                    'mv out/* . || true  # recover checkpoint',
                     f'ln -sf {args.init_dataset} {INIT_DATASET_DIR}',
                     f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}',
                     self._build_dp_train_script(),
                     '',
                     '# move artifacts to output dir',
-                    f'OUT_DIR={args.output_dir}/$ITEM/out/',
+                    f'OUT_DIR={args.persist_dir}/$ITEM/out/',
                     f'mkdir -p $OUT_DIR',
                     f'mv *.done $OUT_DIR',
                     f'mv {DP_FROZEN_MODEL} $OUT_DIR',
@@ -134,15 +134,16 @@ class RunDeepmdTrainingFn:
         return script
 
     def _build_dp_train_script(self):
-        train_cmd = f'{self.dp_cmd} train {DP_INPUT_FILE}'
+        dp_cmd = self.context.dp_cmd
+        train_cmd = f'{dp_cmd} train {DP_INPUT_FILE}'
         # TODO: handle restart, initialize from previous model, support pretrain model
         script = [
             cmd_with_checkpoint(train_cmd, 'dp-train.done'),
-            cmd_with_checkpoint(f'{self.dp_cmd} freeze -o {DP_ORIGINAL_MODEL}', 'dp-freeze.done'),
+            cmd_with_checkpoint(f'{dp_cmd} freeze -o {DP_ORIGINAL_MODEL}', 'dp-freeze.done'),
         ]
         # compress (optional) and frozen model
         if self.config.compress_model:
-            freeze_cmd = f'{self.dp_cmd} compress -i {DP_ORIGINAL_MODEL} -o {DP_FROZEN_MODEL}'
+            freeze_cmd = f'{dp_cmd} compress -i {DP_ORIGINAL_MODEL} -o {DP_FROZEN_MODEL}'
         else:
             freeze_cmd = f'mv {DP_ORIGINAL_MODEL} {DP_FROZEN_MODEL}'
         script.append(cmd_with_checkpoint(freeze_cmd, 'dp-compress.done'))
@@ -156,7 +157,6 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                      deepmd_app: DeepmdApp,
                      python_app: PythonApp,
                      runtime: DeepmdRuntime):
-
     from dflow import argo_range
 
     setup_task_fn = SetupDeepmdTaskFn(config, runtime.type_map)
@@ -166,14 +166,10 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
         SetupDeepmdTasksArgs(
             init_dataset=runtime.init_dataset_url,
             iter_dataset=runtime.iter_dataset_url,
-            output_dir=runtime.workspace_url,
+            work_dir=runtime.workspace_url,
         )
     )
-    run_training_fn = RunDeepmdTrainingFn(
-        config=config,
-        concurrency=deepmd_app.concurrency,
-        dp_cmd=deepmd_app.dp_cmd,
-    )
+    run_training_fn = RunDeepmdTrainingFn(config=config, context=deepmd_app)
     run_training_step = builder.make_bash_step(run_training_fn, uid=f'{ns}-run-training',
                                                setup_script=deepmd_app.setup_script,
                                                with_param=argo_range(deepmd_app.concurrency),
@@ -183,7 +179,7 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
             init_dataset=runtime.init_dataset_url,
             iter_dataset=runtime.iter_dataset_url,
             work_dir=runtime.workspace_url,
-            output_dir=runtime.workspace_url,
+            persist_dir=runtime.workspace_url,
         )
     )
 
