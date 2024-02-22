@@ -9,7 +9,7 @@ from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, get_ln_cmd
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln
 from dflow_galaxy.core import types
 
 from dflow import argo_range
@@ -60,8 +60,8 @@ class SetupDeepmdTaskFn:
     def __call__(self, args: SetupDeepmdTasksArgs):
         # dflow didn't provide a unified file namespace,
         # so we have to link dataset to a fixed path and use relative path to access it
-        os.system(get_ln_cmd(args.init_dataset, INIT_DATASET_DIR))
-        os.system(get_ln_cmd(args.iter_dataset, ITER_DATASET_DIR))
+        safe_ln(args.init_dataset, INIT_DATASET_DIR)
+        safe_ln(args.iter_dataset, ITER_DATASET_DIR)
 
         # TODO: handle iter dataset
         train_dataset_dirs = [ f'{INIT_DATASET_DIR}/{ds}' for ds in self.config.init_dataset]

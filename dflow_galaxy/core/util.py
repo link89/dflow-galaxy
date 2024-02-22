@@ -44,6 +44,12 @@ def get_ln_cmd(from_path: str, to_path: str):
     )
 
 
+def safe_ln(from_path: str, to_path: str, method=None):
+    if method is None:
+        method = os.system
+    method(get_ln_cmd(from_path, to_path))
+
+
 def select_chunk(in_list: list, n: int, i: int):
     assert 0 <= i < n, f'nth should be in range [0, {n})'
     return list_split(sorted(in_list), n)[i]

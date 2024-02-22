@@ -7,13 +7,12 @@ import os
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, get_ln_cmd
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
 from ai2_kit.domain.constant import DP_FROZEN_MODEL
 from ai2_kit.core.artifact import Artifact
-from ai2_kit.core.connector import safe_basename
 
 
 from .lib import resolve_artifact
@@ -73,8 +72,8 @@ class SetupLammpsTaskFn:
     def __call__(self, args: SetupLammpsTasksArgs):
         # dflow didn't provide a unified file namespace,
         # so we have to link dataset to a fixed path and use relative path to access it
-        os.system(get_ln_cmd(args.model_dir, MODEL_DIR))
-        os.system(get_ln_cmd(args.system_dir, SYSTEM_DIR))
+        safe_ln(args.model_dir, MODEL_DIR)
+        safe_ln(args.system_dir, SYSTEM_DIR)
 
         # remap path of input data
         data_files = []

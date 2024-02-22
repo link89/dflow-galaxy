@@ -2,7 +2,6 @@ from typing import Optional
 
 from ai2_kit.core.util import load_yaml_files
 from ai2_kit.core.cmd import CmdGroup
-from ai2_kit.core.artifact import Artifact
 
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import not_none
@@ -13,7 +12,6 @@ from .domain import deepmd, lammps
 
 class RuntimeContext:
     mlp_model_url: Optional[str]
-
 
 
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
