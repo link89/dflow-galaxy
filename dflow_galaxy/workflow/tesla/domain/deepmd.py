@@ -30,14 +30,6 @@ class DeepmdConfig(BaseModel):
     compress_model: bool = False
 
 
-@dataclass
-class DeepmdRuntime:
-    workspace_url: str
-    init_dataset_url: str
-    iter_dataset_url: str
-    type_map: List[str]
-
-
 @dataclass(frozen=True)
 class UpdateNewTrainingDatasetArgs:
     label_output_dir: types.InputArtifact
@@ -122,7 +114,7 @@ class RunDeepmdTrainingFn:
                     f'ln -sf {args.iter_dataset} {ITER_DATASET_DIR}',
                     self._build_dp_train_script(),
                     '',
-                    '# move artifacts to output dir',
+                    '# persist result',
                     f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
                     'mkdir -p $PERSIST_DIR',
                     'mv *.done $PERSIST_DIR',
@@ -158,16 +150,20 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                      executor: ExecutorConfig,
                      deepmd_app: DeepmdApp,
                      python_app: PythonApp,
-                     runtime: DeepmdRuntime):
+                     work_dir_url: str,
+                     init_dataset_url: str,
+                     iter_dataset_url: str,
+                     type_map: List[str],
+                     ):
 
-    setup_task_fn = SetupDeepmdTaskFn(config, runtime.type_map)
+    setup_task_fn = SetupDeepmdTaskFn(config, type_map)
     setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
                                                setup_script=python_app.setup_script,
                                                executor=create_dispatcher(executor, python_app.resource))(
         SetupDeepmdTasksArgs(
-            init_dataset=runtime.init_dataset_url,
-            iter_dataset=runtime.iter_dataset_url,
-            work_dir=runtime.workspace_url,
+            init_dataset=init_dataset_url,
+            iter_dataset=iter_dataset_url,
+            work_dir=work_dir_url,
         )
     )
     run_training_fn = RunDeepmdTrainingFn(config=config, context=deepmd_app)
@@ -177,10 +173,10 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                                                executor=create_dispatcher(executor, deepmd_app.resource))(
         RunDeepmdTrainingArgs(
             slice_idx="{{item}}",
-            init_dataset=runtime.init_dataset_url,
-            iter_dataset=runtime.iter_dataset_url,
-            work_dir=runtime.workspace_url,
-            persist_dir=runtime.workspace_url,
+            init_dataset=init_dataset_url,
+            iter_dataset=iter_dataset_url,
+            work_dir=work_dir_url,
+            persist_dir=work_dir_url,
         )
     )
 

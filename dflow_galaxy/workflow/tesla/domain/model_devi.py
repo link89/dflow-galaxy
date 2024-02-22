@@ -12,3 +12,7 @@ from dflow_galaxy.core import types
 class ModelDeviConfig(BaseModel):
     decent_f: Tuple[float, float]
 
+
+@dataclass
+class ModelDeviRuntime:
+    ...
