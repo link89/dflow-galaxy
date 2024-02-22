@@ -37,11 +37,9 @@ def get_ln_cmd(from_path: str, to_path: str):
     The error of `rm -d` is suppressed as it will fail when to_path is file.
     `-T` option of `ln` is used to avoid some unexpected result.
     """
-    to_path = os.path.normpath(to_path)
-    return 'rm -d {to_path} || true && ln -sfT {from_path} {to_path}'.format(
-        from_path=shlex.quote(from_path),
-        to_path=shlex.quote(to_path)
-    )
+    to_path = shlex.quote(os.path.normpath(to_path))
+    from_path = shlex.quote(from_path)
+    return f'rm -d {to_path} || true && ln -sfT {from_path} {to_path}'
 
 
 def safe_ln(from_path: str, to_path: str, method=None):
