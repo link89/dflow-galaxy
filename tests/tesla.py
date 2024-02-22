@@ -13,6 +13,7 @@ class TestTesla(unittest.TestCase):
             dp_cmd='dp',
         )
         bash_script = step(deepmd.RunDeepmdTrainingArgs(
+            init_dataset='init-dataset',
             task_index=0,
             work_dir='task_dir',
             output_dir='output_dir',

@@ -12,11 +12,11 @@ from .domain import deepmd
 
 
 
-def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False):
+def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False):
     # TODO: fix type issue in ai2-kit
     config_raw = load_yaml_files(*config_files)  # type: ignore
 
-    builder = DFlowBuilder(name=name, s3_prefix=s3_prefix, debug=debug)
+    builder = DFlowBuilder(name='tesla', s3_prefix=s3_prefix, debug=debug)
 
     config = TeslaConfig(**config_raw)
 

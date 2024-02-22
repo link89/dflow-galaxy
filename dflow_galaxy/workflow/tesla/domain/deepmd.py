@@ -171,8 +171,5 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
         )
     )
 
-    builder.add_steps([
-        setup_task_step,
-        run_training_step,
-    ])
-
+    builder.add_step(setup_task_step)
+    builder.add_step(run_training_step)

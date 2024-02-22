@@ -1,6 +1,5 @@
 from .pydantic import BaseModel
 
-from dflow.plugins.dispatcher import DispatcherExecutor
 from typing import Optional
 from urllib.parse import urlparse
 import os
@@ -64,7 +63,7 @@ class ExecutorConfig(BaseModel):
     bohrium: Optional[BohriumConfig] = None
 
 
-def create_dispatcher(config: ExecutorConfig, resource: Resource) -> DispatcherExecutor:
+def create_dispatcher(config: ExecutorConfig, resource: Resource):
     """
     Create a dispatcher executor based on the configuration
     """
@@ -75,7 +74,8 @@ def create_dispatcher(config: ExecutorConfig, resource: Resource) -> DispatcherE
     raise ValueError('At least one of hpc or bohrium should be provided')
 
 
-def create_bohrium_dispatcher(config: BohriumConfig, resource: Resource) -> DispatcherExecutor:
+def create_bohrium_dispatcher(config: BohriumConfig, resource: Resource):
+    from dflow.plugins.dispatcher import DispatcherExecutor
     remote_profile = {
         'email': config.email,
         'password': config.password,
@@ -92,7 +92,8 @@ def create_bohrium_dispatcher(config: BohriumConfig, resource: Resource) -> Disp
     )
 
 
-def create_hpc_dispatcher(config: HpcConfig, resource: Resource) -> DispatcherExecutor:
+def create_hpc_dispatcher(config: HpcConfig, resource: Resource):
+    from dflow.plugins.dispatcher import DispatcherExecutor
     url = urlparse(config.url)
     assert url.scheme == 'ssh', 'Only SSH is supported for HPC dispatcher'
     assert url.username, 'Username is required in the URL'

@@ -74,8 +74,6 @@ def bash_slice(in_var: str, n: int, i: int, out_var: str,
     :param i: chunk index
     :param out_var: variable name to store the selected chunk
     """
-    assert 0 <= i < n, f'nth should be in range [0, {n})'
-
     return f"""# bash_slice({in_var}, {n}, {i}, {out_var}):
 {out_var}=$(IN_DATA="${in_var}" {python_cmd} << EOF
 import sys,os
