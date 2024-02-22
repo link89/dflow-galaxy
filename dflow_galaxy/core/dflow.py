@@ -526,7 +526,7 @@ class DFlowBuilder:
 
     def _add_python_fn(self, fn, fn_str: str, fn_hash: str):
         if fn not in self._python_fns:
-            fn_prefix = self.s3_dump(fn_str, 'build-in/python/fn', fn_hash)
+            fn_prefix = self.s3_dump(fn_str, f'build-in/python/fn/{fn_hash}')
             logger.info(f'upload {fn} to {fn_prefix}')
             self._python_fns[fn] = fn_prefix
         return self._python_fns[fn]
