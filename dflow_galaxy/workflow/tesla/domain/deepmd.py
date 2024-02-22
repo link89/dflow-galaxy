@@ -4,7 +4,7 @@ import glob
 import os
 
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
-from ai2_kit.core.util import cmd_with_checkpoint
+from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp
 from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_MODEL
 
 from dflow_galaxy.core.pydantic import BaseModel
@@ -138,15 +138,15 @@ class RunDeepmdTrainingFn:
         train_cmd = f'{dp_cmd} train {DP_INPUT_FILE}'
         # TODO: handle restart, initialize from previous model, support pretrain model
         script = [
-            cmd_with_checkpoint(train_cmd, 'dp-train.done'),
-            cmd_with_checkpoint(f'{dp_cmd} freeze -o {DP_ORIGINAL_MODEL}', 'dp-freeze.done'),
+            cmd_cp(train_cmd, 'dp-train.done'),
+            cmd_cp(f'{dp_cmd} freeze -o {DP_ORIGINAL_MODEL}', 'dp-freeze.done'),
         ]
         # compress (optional) and frozen model
         if self.config.compress_model:
             freeze_cmd = f'{dp_cmd} compress -i {DP_ORIGINAL_MODEL} -o {DP_FROZEN_MODEL}'
         else:
             freeze_cmd = f'mv {DP_ORIGINAL_MODEL} {DP_FROZEN_MODEL}'
-        script.append(cmd_with_checkpoint(freeze_cmd, 'dp-compress.done'))
+        script.append(cmd_cp(freeze_cmd, 'dp-compress.done'))
 
         return '\n'.join(script)
 

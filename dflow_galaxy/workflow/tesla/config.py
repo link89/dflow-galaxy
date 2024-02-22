@@ -19,7 +19,7 @@ class GeneralConfig(BaseModel):
 class AppsConfig(BaseModel):
     python: dispatcher.PythonApp
     deepmd: Optional['deepmd.DeepmdApp'] = None
-    lammps: Optional['lammps.LammpsContext'] = None
+    lammps: Optional['lammps.LammpsApp'] = None
     cp2k: Optional['cp2k.Cp2kContext'] = None
 
 
