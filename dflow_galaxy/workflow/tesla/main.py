@@ -39,7 +39,7 @@ def run_tesla(*config_files: str, name: str, s3_prefix: str, debug: bool = False
                 builder.s3_upload(ds.url, f'init-dataset/{ds_key}', cache=True)  # set cache to avoid re-upload
 
             deepmd_runtime = deepmd.DeepmdRuntime(
-                base_url=builder.s3_url(f'train-deepmd/{iter_str}'),
+                workspace_url=builder.s3_url(f'train-deepmd/{iter_str}'),
                 init_dataset_url=builder.s3_url('init-dataset'),
                 type_map=type_map,
             )

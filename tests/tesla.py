@@ -14,7 +14,7 @@ class TestTesla(unittest.TestCase):
         )
         bash_script = step(deepmd.RunDeepmdTrainingArgs(
             task_index=0,
-            task_dir='task_dir',
+            work_dir='task_dir',
             output_dir='output_dir',
         ))
         print(ensure_str(bash_script))

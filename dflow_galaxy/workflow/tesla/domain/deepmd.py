@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict
-from pathlib import Path
 import glob
+import os
 
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs, make_deepmd_dataset
 from ai2_kit.core.util import cmd_with_checkpoint
@@ -13,6 +13,8 @@ from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice
 from dflow_galaxy.core import types
 
+INIT_DATASET_DIR = './init-dataset'
+ITER_DATASET_DIR = './iter-dataset'
 
 class DeepmdApp(BaseApp):
     dp_cmd: str = 'dp'
@@ -25,9 +27,10 @@ class DeepmdConfig(BaseModel):
     input_template: dict = {}
     compress_model: bool = False
 
+
 @dataclass
 class DeepmdRuntime:
-    base_url: str
+    workspace_url: str
     init_dataset_url: str
     type_map: List[str]
 
@@ -58,7 +61,10 @@ class SetupDeepmdTaskFn:
         self.type_map = type_map
 
     def __call__(self, args: SetupDeepmdTasksArgs):
-        train_dataset_dirs = glob.glob(f'{args.init_dataset}/*')
+        # dflow didn't provide a unified file namespace,
+        # so we have to lind to a fixed path and use relative path to access the dataset
+        os.system(f'ln -s {args.init_dataset} {INIT_DATASET_DIR}')
+        train_dataset_dirs = glob.glob(f'{INIT_DATASET_DIR}/*')
 
         make_deepmd_task_dirs(input_template=self.config.input_template,
                               model_num=self.config.model_num,
@@ -77,8 +83,9 @@ class SetupDeepmdTaskFn:
 @dataclass(frozen=True)
 class RunDeepmdTrainingArgs:
     task_index: types.InputParam[int]
+    init_dataset: types.InputArtifact
 
-    task_dir: types.InputArtifact
+    work_dir: types.InputArtifact
     output_dir: types.OutputArtifact
 
 
@@ -94,12 +101,13 @@ class RunDeepmdTrainingFn:
     def __call__(self, args: RunDeepmdTrainingArgs):
         """generate bash script to run deepmd training commands"""
         script = [
-            f"pushd {args.task_dir}",
+            f"pushd {args.work_dir}",
             bash_iter_ls_slice(
                 '*/', opt='-d', n=self.c, i=args.task_index, it_var='ITEM',
                 script=[
                     '# dp train',
                     'pushd $ITEM',
+                    f'ln -s {args.init_dataset} {INIT_DATASET_DIR}',
                     'mv out/*.done . || true  # recover checkpoint',
                     self._build_dp_train_script(),
                     '',
@@ -144,7 +152,7 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                                                executor=create_dispatcher(executor, python_app.resource))(
         SetupDeepmdTasksArgs(
             init_dataset=runtime.init_dataset_url,
-            output_dir=runtime.base_url,
+            output_dir=runtime.workspace_url,
         )
     )
     run_training_fn = RunDeepmdTrainingFn(
@@ -157,8 +165,9 @@ def deepmd_provision(builder: DFlowBuilder, ns: str, /,
                                                executor=create_dispatcher(executor, deepmd_app.resource))(
         RunDeepmdTrainingArgs(
             task_index=0,
-            task_dir=setup_task_step.args.output_dir,
-            output_dir=runtime.base_url,
+            init_dataset=runtime.init_dataset_url,
+            work_dir=runtime.workspace_url,
+            output_dir=runtime.workspace_url,
         )
     )
 
