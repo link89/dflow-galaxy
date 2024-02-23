@@ -87,7 +87,7 @@ class SetupLammpsTaskFn:
         model_files = glob.glob(search_pattern)
         assert model_files, f'no model files found in {search_pattern}'
 
-        make_lammps_task_dirs(
+        _base_dir, task_dirs = make_lammps_task_dirs(
             combination_vars=self.config.product_vars,
             broadcast_vars=self.config.broadcast_vars,
             data_files=data_files,
@@ -114,6 +114,7 @@ class SetupLammpsTaskFn:
             fix_statement=None,
             ai2_kit_cmd='python -m ai2_kit.main',
         )
+
 
 
 @dataclass(frozen=True)

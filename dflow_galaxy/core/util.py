@@ -1,6 +1,5 @@
 from typing import Optional, TypeVar
 from ai2_kit.core.util import list_split
-import shlex
 import os
 
 
@@ -37,8 +36,6 @@ def get_ln_cmd(from_path: str, to_path: str):
     The error of `rm -d` is suppressed as it will fail when to_path is file.
     `-T` option of `ln` is used to avoid some unexpected result.
     """
-    to_path = shlex.quote(os.path.normpath(to_path))
-    from_path = shlex.quote(from_path)
     return f'rm -d {to_path} || true && ln -sfT {from_path} {to_path}'
 
 
