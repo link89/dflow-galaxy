@@ -90,6 +90,16 @@ class SetupLammpsTaskFn:
         model_files = glob.glob(search_pattern)
         assert model_files, f'no model files found in {search_pattern}'
 
+        default_vars = {
+            'TAU_T': [0.1],
+            'TAU_P': [0.5],
+            'TIME_CONST': [0.1],
+        }
+
+        for k, v in default_vars.items():
+            if k not in self.config.product_vars and k not in self.config.broadcast_vars:
+                self.config.broadcast_vars[k] = v  # type: ignore
+
         _base_dir, task_dirs = make_lammps_task_dirs(
             combination_vars=self.config.product_vars,
             broadcast_vars=self.config.broadcast_vars,
@@ -143,19 +153,18 @@ class RunLammpsTasksFn:
 
         script = [
             f"pushd {args.work_dir}",
-            '# The env var ITEM has conflict with LAMMPS, use _ITEM instead',
             bash_iter_ls_slice(
-                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='_ITEM',
+                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
                 script=[
                     '# run lammps',
-                    'pushd $_ITEM',
+                    'pushd $ITEM',
                     get_ln_cmd(args.model_dir, MODEL_DIR),
                     'mv persist/* . || true  # restore previous state',
                     '',
                     self._build_lammps_cmd(),
                     '',
                     '# persist result',
-                    f'PERSIST_DIR={args.persist_dir}/_$ITEM/persist/',
+                    f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
                     'mkdir -p $PERSIST_DIR',
                     'mv *.done traj model_devi.out ANCESTOR $PERSIST_DIR',
                     'popd',
@@ -166,7 +175,7 @@ class RunLammpsTasksFn:
         return script
 
     def _build_lammps_cmd(self):
-        lmp_cmd = self.context.lammps_cmd
+        lmp_cmd = f'{self.context.lammps_cmd} -i lammps.input'
         cmd = f'''if [ -f md.restart.* ]; then {lmp_cmd} -v restart 1; else {lmp_cmd} -v restart 0; fi'''
         return cmd_cp(cmd, 'lammps.done', ignore_error=self.config.ignore_error)
 

@@ -13,6 +13,8 @@ class ModelDeviConfig(BaseModel):
     decent_f: Tuple[float, float]
 
 
-@dataclass
-class ModelDeviRuntime:
-    ...
+@dataclass(frozen=True)
+class ModelDeviArgs:
+    output_dir: types.OutputArtifact
+    config: ModelDeviConfig
+
