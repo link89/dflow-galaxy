@@ -25,7 +25,7 @@ class TestTesla(unittest.TestCase):
 
 
     def test_get_lammpstraj_frame_no(self):
-        self.assertEqual(model_devi._get_lammpstraj_frame_no('100.lammpstraj'), 100)
+        self.assertEqual(model_devi.get_lammpstrj_frame_no('100.lammpstraj'), 100)
 
 
 
