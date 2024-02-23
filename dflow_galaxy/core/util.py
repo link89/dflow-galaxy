@@ -1,5 +1,6 @@
 from typing import Optional, TypeVar
 from ai2_kit.core.util import list_split
+import sys
 import os
 
 
@@ -129,18 +130,22 @@ def yes_or_not(msg: str, default: bool = False):
         print('Invalid input, please input y or n')
 
 
-def resolve_ln(path: str):
+def resolve_ln(path: str, mv=False):
     """
     This command will iterate over the files in the given directory recursively,
     if the file is a soft link, it will resolve the link and
     copy the resolved file to the same directory with the same name.
 
     :param path: the directory to resolve symlinks
+    :param mv: if True, move the resolved file to the same directory with the same name
     """
     if os.path.islink(path):
         resolved_path = os.path.realpath(path)
         resolved_file = os.path.join(os.path.dirname(path), os.path.basename(resolved_path))
-        os.system(f'cp -f {resolved_path} {resolved_file}')
+        cmd = 'mv' if mv else 'cp -f'
+        os.system(f'rm {resolved_file} && {cmd} {resolved_path} {resolved_file}')
+        # log is too verbose
+        # print(f'replace {path} with {resolved_path}', file=sys.stderr)
 
     elif os.path.isdir(path):
         for root, dirs, files in os.walk(path):

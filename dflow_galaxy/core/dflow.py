@@ -1,4 +1,5 @@
 from dflow.op_template import ScriptOPTemplate
+from dflow.plugins.dispatcher import DispatcherExecutor
 import dflow
 
 from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Generic, Dict, Any, Iterable
@@ -18,11 +19,12 @@ import shlex
 import bz2
 import os
 
+
+from .util import resolve_ln
 from .log import get_logger
 from . import types
-logger = get_logger(__name__)
 
-from dflow.plugins.dispatcher import DispatcherExecutor
+logger = get_logger(__name__)
 
 T_ARGS = TypeVar('T_ARGS')
 T_RESULT = TypeVar('T_RESULT')
@@ -419,7 +421,11 @@ class DFlowBuilder:
         Run the workflow.
         """
         self.workflow.submit()
-        self.workflow.wait()
+        try:
+            self.workflow.wait()
+        finally:
+            if self._debug:
+                resolve_ln(self.s3_base_prefix, mv=True)
 
     def make_bash_step(self, fn: Callable[[T_ARGS], types.ListStr], /,
                        uid: Optional[str] = None,
