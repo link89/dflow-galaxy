@@ -111,3 +111,22 @@ sys.stdout.write('\\n'.join(lines[start:end]))
 EOF
 )
 echo 'bash_slice end' """
+
+
+def yes_or_not(msg: str, default: bool = False):
+    """
+    prompt user for input, if user press n or N, return False
+    if user press y or Y, return True
+    otherwise, ask again
+    """
+    msg = f'{msg} [Y/n]: ' if default else f'{msg} [n/Y]: '
+
+    while True:
+        ans = input(msg)
+        if not ans:
+            return default
+        if ans.lower() == 'y':
+            return True
+        if ans.lower() == 'n':
+            return False
+        print('Invalid input, please input y or n')
