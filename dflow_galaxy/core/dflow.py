@@ -246,7 +246,7 @@ def python_build_template(py_fn: Callable,
     for f, v in iter_python_step_args(args_type):
         if f.type.__metadata__[0] == types.Symbol.INPUT_PARAMETER:
             # FIXME: may have error in some corner cases
-            if issubclass(f.type.__origin__, str):
+            if _is_str_type(f.type.__origin__):
                 val = f'"""{{{{inputs.parameters.{f.name}}}}}"""'
             else:
                 val = f'json.loads("""{{{{inputs.parameters.{f.name}}}}}""")'
@@ -300,7 +300,7 @@ def python_build_template(py_fn: Callable,
 
     for f, v in iter_python_step_return(return_type):
         path = os.path.join(output_parameters_dir, f.name)
-        if issubclass(f.type.__origin__, str):
+        if _is_str_type(f.type.__origin__):
             fn_str.extend([
                 f'with open({repr(path)}, "w") as fp:',
                 f'    fp.write(str(__ret.{f.name}))'
@@ -621,3 +621,10 @@ def _dflow_script_check(source: Iterable[str], base_dir):
         assert '/tmp' not in line.replace(base_dir, ''), 'dflow: script should not contain /tmp literal'
         assert '"""' not in line, 'dflow: script should not contain """'
         assert '$(pwd)' not in line, 'dflow: script should not contain $(pwd)'
+
+def _is_str_type(cls):
+    # FIXME: this may have problem in some corner case
+    try:
+        return issubclass(cls, str)
+    except TypeError:
+        return False

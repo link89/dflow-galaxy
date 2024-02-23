@@ -128,6 +128,7 @@ class SetupLammpsTaskFn:
 @dataclass(frozen=True)
 class RunLammpsTasksArgs:
     slice_idx: types.InputParam[types.SliceIndex]
+    model_dir: types.InputArtifact
     work_dir: types.InputArtifact
     persist_dir: types.OutputArtifact
 
@@ -142,19 +143,21 @@ class RunLammpsTasksFn:
 
         script = [
             f"pushd {args.work_dir}",
+            '# The env var ITEM has conflict with LAMMPS, use _ITEM instead',
             bash_iter_ls_slice(
-                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
+                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='_ITEM',
                 script=[
                     '# run lammps',
-                    'pushd $ITEM',
+                    'pushd $_ITEM',
+                    get_ln_cmd(args.model_dir, MODEL_DIR),
                     'mv persist/* . || true  # restore previous state',
                     '',
                     self._build_lammps_cmd(),
                     '',
                     '# persist result',
-                    f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
+                    f'PERSIST_DIR={args.persist_dir}/_$ITEM/persist/',
                     'mkdir -p $PERSIST_DIR',
-                    'mv *.done traj model_devi.out $PERSIST_DIR',
+                    'mv *.done traj model_devi.out ANCESTOR $PERSIST_DIR',
                     'popd',
                 ]
             ),
@@ -193,12 +196,13 @@ def lammps_provision(builder: DFlowBuilder, ns: str, /,
     )
 
     run_task_fn = RunLammpsTasksFn(config, lammps_app)
-    run_task_step = builder.make_python_step(run_task_fn, uid=f'{ns}-run-task',
-                                             setup_script=lammps_app.setup_script,
-                                             with_param=argo_range(lammps_app.concurrency),
-                                             executor=create_dispatcher(executor, lammps_app.resource))(
+    run_task_step = builder.make_bash_step(run_task_fn, uid=f'{ns}-run-task',
+                                           setup_script=lammps_app.setup_script,
+                                           with_param=argo_range(lammps_app.concurrency),
+                                           executor=create_dispatcher(executor, lammps_app.resource))(
         RunLammpsTasksArgs(
             slice_idx='{{item}}',
+            model_dir=mlp_model_url,
             work_dir=work_dir_url,
             persist_dir=work_dir_url,
         )
