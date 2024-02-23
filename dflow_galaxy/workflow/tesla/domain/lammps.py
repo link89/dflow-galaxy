@@ -113,6 +113,7 @@ class SetupLammpsTaskFn:
             n_wise=0,
             fix_statement=None,
             ai2_kit_cmd='python -m ai2_kit.main',
+            rel_path=True,
         )
         # write ancestor to the task dirs
         for task_dir in task_dirs:
