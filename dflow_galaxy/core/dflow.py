@@ -350,7 +350,7 @@ class DFlowBuilder:
         """
         if debug:
             dflow.config['mode'] = 'debug'
-            dflow.config['debug_copy_method'] =  'copy'
+            # dflow.config['debug_copy_method'] =  'copy'
             s3_prefix = s3_prefix.lstrip('/')
 
         assert container_base_dir.startswith('/tmp'), 'dflow: container_base_dir must start with /tmp'

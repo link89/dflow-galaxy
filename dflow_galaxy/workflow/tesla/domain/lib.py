@@ -36,5 +36,5 @@ class StepSwitch:
 
     def shall_skip(self, msg: str):
         if self._skip:
-            self._skip = yes_or_not(f'Do you want to skip this: {msg}?', default=True)
+            self._skip = yes_or_not(f'Do you want to skip this step: {msg}?', default=True)
         return self._skip

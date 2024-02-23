@@ -26,7 +26,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
     max_iter = config.workflow.general.max_iters
 
     builder = DFlowBuilder(name='tesla', s3_prefix=s3_prefix, debug=debug)
-    skip_switch = StepSwitch(skip)
+    step_switch = StepSwitch(skip)
     runtime_ctx = RuntimeContext()
 
     for iter_num in range(max_iter):
@@ -39,7 +39,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             runtime_ctx.mlp_model_url = f's3://./train-deepmd/iter/{iter_str}'
             deepmd_executor = not_none(config.executors[not_none(config.orchestration.deepmd)])
 
-            if not skip_switch.shall_skip(step_name):
+            if not step_switch.shall_skip(step_name):
                 for ds_key in deepmd_cfg.init_dataset:
                     ds = not_none(config.datasets[ds_key])
                     builder.s3_upload(ds.url, f'init-dataset/{ds_key}', cache=True)  # set cache to avoid re-upload
@@ -63,7 +63,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             step_name = f'explore-lammps-iter-{iter_str}'
             lammps_executor = not_none(config.executors[not_none(config.orchestration.lammps)])
 
-            if not skip_switch.shall_skip(step_name):
+            if not step_switch.shall_skip(step_name):
                 for sys_key in lammps_cfg.systems:
                     sys = not_none(config.datasets[sys_key])
                     builder.s3_upload(sys.url, f'explore-dataset/{sys_key}', cache=True)
