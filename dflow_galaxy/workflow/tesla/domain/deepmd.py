@@ -154,10 +154,10 @@ def provision_deepmd(builder: DFlowBuilder, ns: str, /,
                      type_map: List[str],
                      ):
 
-    setup_task_fn = SetupDeepmdTaskFn(config, type_map)
-    setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
-                                               setup_script=python_app.setup_script,
-                                               executor=create_dispatcher(executor, python_app.resource))(
+    setup_tasks_fn = SetupDeepmdTaskFn(config, type_map)
+    setup_tasks_step = builder.make_python_step(setup_tasks_fn, uid=f'{ns}-setup-task',
+                                                setup_script=python_app.setup_script,
+                                                executor=create_dispatcher(executor, python_app.resource))(
         SetupDeepmdTasksArgs(
             init_dataset=init_dataset_url,
             iter_dataset=iter_dataset_url,
@@ -178,5 +178,5 @@ def provision_deepmd(builder: DFlowBuilder, ns: str, /,
         )
     )
 
-    builder.add_step(setup_task_step)
+    builder.add_step(setup_tasks_step)
     builder.add_step(run_training_step)

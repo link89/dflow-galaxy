@@ -62,7 +62,7 @@ class SetupLammpsTasksArgs:
     work_dir: types.OutputArtifact
 
 
-class SetupLammpsTaskFn:
+class SetupLammpsTasksFn:
     def __init__(self, config: LammpsConfig,
                  type_map: List[str],
                  mass_map: List[float],
@@ -193,10 +193,10 @@ def provision_lammps(builder: DFlowBuilder, ns: str, /,
                      mass_map: List[float],
                      systems: Mapping[str, Artifact],
                      ):
-    setup_task_fn = SetupLammpsTaskFn(config, type_map=type_map, mass_map=mass_map, systems=systems)
-    setup_task_step = builder.make_python_step(setup_task_fn, uid=f'{ns}-setup-task',
-                                               setup_script=python_app.setup_script,
-                                               executor=create_dispatcher(executor, python_app.resource))(
+    setup_tasks_fn = SetupLammpsTasksFn(config, type_map=type_map, mass_map=mass_map, systems=systems)
+    setup_tasks_step = builder.make_python_step(setup_tasks_fn, uid=f'{ns}-setup-task',
+                                                setup_script=python_app.setup_script,
+                                                executor=create_dispatcher(executor, python_app.resource))(
         SetupLammpsTasksArgs(
             model_dir=mlp_model_url,
             system_dir=systems_url,
@@ -204,11 +204,11 @@ def provision_lammps(builder: DFlowBuilder, ns: str, /,
         )
     )
 
-    run_task_fn = RunLammpsTasksFn(config, lammps_app)
-    run_task_step = builder.make_bash_step(run_task_fn, uid=f'{ns}-run-task',
-                                           setup_script=lammps_app.setup_script,
-                                           with_param=argo_range(lammps_app.concurrency),
-                                           executor=create_dispatcher(executor, lammps_app.resource))(
+    run_tasks_fn = RunLammpsTasksFn(config, lammps_app)
+    run_tasks_step = builder.make_bash_step(run_tasks_fn, uid=f'{ns}-run-task',
+                                            setup_script=lammps_app.setup_script,
+                                            with_param=argo_range(lammps_app.concurrency),
+                                            executor=create_dispatcher(executor, lammps_app.resource))(
         RunLammpsTasksArgs(
             slice_idx='{{item}}',
             model_dir=mlp_model_url,
@@ -217,5 +217,5 @@ def provision_lammps(builder: DFlowBuilder, ns: str, /,
         )
     )
 
-    builder.add_step(setup_task_step)
-    builder.add_step(run_task_step)
+    builder.add_step(setup_tasks_step)
+    builder.add_step(run_tasks_step)

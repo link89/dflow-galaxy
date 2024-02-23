@@ -39,3 +39,11 @@ class SetupCp2kTasksArgs:
     iter_system_dir: types.InputArtifact
     work_dir: types.OutputArtifact
 
+
+class SetupCp2kTaskFn:
+
+    def __init__(self, config: Cp2kConfig):
+        self.config = config
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        pass
