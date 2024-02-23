@@ -1,7 +1,7 @@
 from typing import List
 from ai2_kit.core.artifact import Artifact, ArtifactDict
 import glob
-from dflow_galaxy.core.util import yes_or_not
+from dflow_galaxy.core.util import yes_or_no
 
 
 def resolve_artifact(a: Artifact) -> List[ArtifactDict]:
@@ -35,5 +35,5 @@ class StepSwitch:
 
     def shall_skip(self, step: str):
         if self._skip:
-            self._skip = yes_or_not(f'Do you want to skip this step: {step}?', default=True)
+            self._skip = yes_or_no(f'Do you want to skip this step: {step}?', default=True)
         return self._skip

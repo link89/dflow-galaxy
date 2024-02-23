@@ -111,7 +111,7 @@ EOF
 echo 'bash_slice end' """
 
 
-def yes_or_not(msg: str, default: bool = False):
+def yes_or_no(msg: str, default: bool = False):
     """
     prompt user for input, if user press n or N, return False
     if user press y or Y, return True

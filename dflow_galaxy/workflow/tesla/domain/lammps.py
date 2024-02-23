@@ -21,8 +21,8 @@ from dflow import argo_range
 from .lib import resolve_artifact
 
 
-MODEL_DIR = './mlp-model'
-SYSTEM_DIR = './system-dataset'
+MODEL_DIR = './mlp-models'
+SYSTEM_DIR = './systems'
 
 
 class LammpsApp(BaseApp):
