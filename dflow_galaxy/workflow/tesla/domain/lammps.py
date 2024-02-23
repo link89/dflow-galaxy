@@ -7,12 +7,15 @@ import os
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
 from ai2_kit.domain.constant import DP_FROZEN_MODEL
 from ai2_kit.core.artifact import Artifact
+from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp
+
+from dflow import argo_range
 
 
 from .lib import resolve_artifact
@@ -130,11 +133,39 @@ class RunLammpsTasksArgs:
 
 
 class RunLammpsTasksFn:
-    def __init__(self, config: LammpsConfig):
+    def __init__(self, config: LammpsConfig, context: LammpsApp):
         self.config = config
+        self.context = context
 
     def __call__(self, args: RunLammpsTasksArgs):
-        ...
+        c = self.context.concurrency
+
+        script = [
+            f"pushd {args.work_dir}",
+            bash_iter_ls_slice(
+                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
+                script=[
+                    '# run lammps',
+                    'pushd $ITEM',
+                    'mv persist/* . || true  # restore previous state',
+                    '',
+                    self._build_lammps_cmd(),
+                    '',
+                    '# persist result',
+                    f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
+                    'mkdir -p $PERSIST_DIR',
+                    'mv *.done traj model_devi.out $PERSIST_DIR',
+                    'popd',
+                ]
+            ),
+            'popd',
+        ]
+        return script
+
+    def _build_lammps_cmd(self):
+        lmp_cmd = self.context.lammps_cmd
+        cmd = f'''if [ -f md.restart.* ]; then {lmp_cmd} -v restart 1; else {lmp_cmd} -v restart 0; fi'''
+        return cmd_cp(cmd, 'lammps.done', ignore_error=self.config.ignore_error)
 
 
 def lammps_provision(builder: DFlowBuilder, ns: str, /,
@@ -161,4 +192,17 @@ def lammps_provision(builder: DFlowBuilder, ns: str, /,
         )
     )
 
+    run_task_fn = RunLammpsTasksFn(config, lammps_app)
+    run_task_step = builder.make_python_step(run_task_fn, uid=f'{ns}-run-task',
+                                             setup_script=lammps_app.setup_script,
+                                             with_param=argo_range(lammps_app.concurrency),
+                                             executor=create_dispatcher(executor, lammps_app.resource))(
+        RunLammpsTasksArgs(
+            slice_idx='{{item}}',
+            work_dir=work_dir_url,
+            persist_dir=work_dir_url,
+        )
+    )
+
     builder.add_step(setup_task_step)
+    builder.add_step(run_task_step)

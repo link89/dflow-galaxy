@@ -91,9 +91,7 @@ class RunDeepmdTrainingArgs:
 
 
 class RunDeepmdTrainingFn:
-    def __init__(self,
-                 config: DeepmdConfig,
-                 context: DeepmdApp):
+    def __init__(self, config: DeepmdConfig, context: DeepmdApp):
         self.config = config
         self.context = context
 
@@ -111,6 +109,7 @@ class RunDeepmdTrainingFn:
                     'mv persist/* . || true  # recover checkpoint',
                     get_ln_cmd(args.init_dataset, INIT_DATASET_DIR),
                     get_ln_cmd(args.iter_dataset, ITER_DATASET_DIR),
+                    '',
                     self._build_dp_train_script(),
                     '',
                     '# persist result',
