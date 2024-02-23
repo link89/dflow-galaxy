@@ -30,7 +30,7 @@ class RunModelDeviTasksArgs:
     explore_dir: types.InputArtifact
     persist_dir: types.OutputArtifact
 
-_ModelDeviResult = namedtuple('_ModelDeviResult', ['data_dir', 'decent_xyz', 'ancestor', 'total', 'n_good', 'n_decent', 'n_bad'])
+_ModelDeviResult = namedtuple('_ModelDeviResult', ['data_dir', 'decent_xyz', 'ancestor', 'total', 'n_good', 'n_decent', 'n_poor'])
 
 class RunModelDeviTasksFn:
 
@@ -41,18 +41,19 @@ class RunModelDeviTasksFn:
 
     def __call__(self, args: RunModelDeviTasksArgs):
         persis_dir = Path(args.persist_dir)
+        persis_dir.mkdir(exist_ok=True)
         data_dirs = sorted(glob.glob(f'{args.explore_dir}/tasks/*/persist'))
         results: List[_ModelDeviResult] = Parallel(n_jobs=self.workers)(
             delayed(self._process_lammps_dir)(Path(d)) for d in data_dirs
         ) # type: ignore
 
         # generate report
-        headers = ['src', 'total', 'good', 'decent', 'bad', 'good%', 'decent%', 'poor%']
+        headers = ['src', 'total', 'good', 'decent', 'poor', 'good%', 'decent%', 'poor%']
         rows = [ ]
         _pp = lambda a, b: f'{a / b * 100:.2f}%'
         for r in results:
-            row = [os.path.relpath(r.data_dir, args.explore_dir), r.total, r.n_good, r.n_decent,
-                   _pp(r.n_good, r.total), _pp(r.n_decent, r.total), _pp(r.n_bad, r.total)]
+            row = [os.path.relpath(r.data_dir, args.explore_dir), r.total, r.n_good, r.n_decent, r.n_poor,
+                   _pp(r.n_good, r.total), _pp(r.n_decent, r.total), _pp(r.n_poor, r.total)]
             rows.append(row)
 
         report_text = tabulate(rows, headers=headers, tablefmt='tsv')
@@ -64,7 +65,7 @@ class RunModelDeviTasksFn:
             assert ancestor, f'ancestor should not be empty'
             group = list(group)
             assert group, f'group should not be empty'
-            decent_xyz_files = [r.decent_xyz for r in group if r.decent_xyz is not None]
+            decent_xyz_files = [str(r.decent_xyz) for r in group if r.decent_xyz is not None]
             if not decent_xyz_files:
                 print(f'no decent files for ancestor {ancestor}')
                 continue
@@ -89,7 +90,7 @@ class RunModelDeviTasksFn:
 
         good_df = df[df[col] < lo]
         decent_df = df[(df[col] >= lo) & (df[col] < hi)]
-        bad_df = df[df[col] > hi]
+        poor_df = df[df[col] > hi]
 
         traj_files = glob.glob(f'{traj_dir}/*.lammpstrj')
         assert traj_files, f'no traj files is found in {traj_dir}'
@@ -113,7 +114,7 @@ class RunModelDeviTasksFn:
             total=len(df),
             n_good=len(good_df),
             n_decent=len(decent_df),
-            n_bad=len(bad_df),
+            n_poor=len(poor_df),
         )
 
     def _dump_lammpstrj_to_xyz(self, lmptrj_file: Path, xyz_file: Path):
