@@ -114,7 +114,11 @@ class SetupLammpsTaskFn:
             fix_statement=None,
             ai2_kit_cmd='python -m ai2_kit.main',
         )
-
+        # write ancestor to the task dirs
+        for task_dir in task_dirs:
+            path = os.path.join(task_dir['url'], 'ANCESTOR')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(task_dir['attrs']['ancestor'])
 
 
 @dataclass(frozen=True)
