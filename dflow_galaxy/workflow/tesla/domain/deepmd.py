@@ -143,7 +143,7 @@ class RunDeepmdTrainingFn:
         return '\n'.join(script)
 
 
-def deepmd_provision(builder: DFlowBuilder, ns: str, /,
+def provision_deepmd(builder: DFlowBuilder, ns: str, /,
                      config: DeepmdConfig,
                      executor: ExecutorConfig,
                      deepmd_app: DeepmdApp,

@@ -13,6 +13,7 @@ from .domain.lib import StepSwitch
 
 class RuntimeContext:
     mlp_model_url: Optional[str]
+    explore_url: Optional[str]
 
 
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False):
@@ -43,7 +44,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                 for ds_key in deepmd_cfg.init_dataset:
                     ds = not_none(config.datasets[ds_key])
                     builder.s3_upload(ds.url, f'init-dataset/{ds_key}', cache=True)  # set cache to avoid re-upload
-                deepmd.deepmd_provision(builder, step_name,
+                deepmd.provision_deepmd(builder, step_name,
                                         config=deepmd_cfg,
                                         executor=deepmd_executor,
                                         deepmd_app=not_none(deepmd_executor.apps.deepmd),
@@ -61,6 +62,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
         lammps_cfg = config.workflow.explore.lammps
         if lammps_cfg:
             step_name = f'explore-lammps-iter-{iter_str}'
+            runtime_ctx.explore_url = f's3://./explore-lammps/iter/{iter_str}'
             lammps_executor = not_none(config.executors[not_none(config.orchestration.lammps)])
 
             if not step_switch.shall_skip(step_name):
@@ -68,7 +70,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                     sys = not_none(config.datasets[sys_key])
                     builder.s3_upload(sys.url, f'explore-dataset/{sys_key}', cache=True)
 
-                lammps.lammps_provision(builder, step_name,
+                lammps.provision_lammps(builder, step_name,
                                         config=lammps_cfg,
                                         executor=lammps_executor,
                                         lammps_app=not_none(lammps_executor.apps.lammps),
@@ -76,7 +78,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
 
                                         mlp_model_url=runtime_ctx.mlp_model_url,
                                         systems_url='s3://./explore-dataset',
-                                        work_dir_url=f's3://./explore-lammps/iter/{iter_str}',
+                                        work_dir_url=runtime_ctx.explore_url,
                                         type_map=type_map,
                                         mass_map=mass_map,
                                         systems=config.datasets)

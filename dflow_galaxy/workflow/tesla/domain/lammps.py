@@ -90,12 +90,12 @@ class SetupLammpsTaskFn:
         model_files = glob.glob(search_pattern)
         assert model_files, f'no model files found in {search_pattern}'
 
+        # handle default value
         default_vars = {
             'TAU_T': [0.1],
             'TAU_P': [0.5],
             'TIME_CONST': [0.1],
         }
-
         for k, v in default_vars.items():
             if k not in self.config.product_vars and k not in self.config.broadcast_vars:
                 self.config.broadcast_vars[k] = v  # type: ignore
@@ -180,7 +180,7 @@ class RunLammpsTasksFn:
         return cmd_cp(cmd, 'lammps.done', ignore_error=self.config.ignore_error)
 
 
-def lammps_provision(builder: DFlowBuilder, ns: str, /,
+def provision_lammps(builder: DFlowBuilder, ns: str, /,
                      config: LammpsConfig,
                      executor: ExecutorConfig,
                      lammps_app: LammpsApp,
