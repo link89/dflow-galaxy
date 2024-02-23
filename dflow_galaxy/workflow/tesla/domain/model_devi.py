@@ -26,7 +26,7 @@ class ModelDeviConfig(BaseModel):
 
 
 @dataclass(frozen=True)
-class ModelDeviArgs:
+class RunModelDeviTasksArgs:
     explore_dir: types.InputArtifact
     persist_dir: types.OutputArtifact
 
@@ -39,11 +39,11 @@ class RunModelDeviTasksFn:
         self.workers = workers
         self.type_map = type_map
 
-    def __call__(self, args: ModelDeviArgs):
+    def __call__(self, args: RunModelDeviTasksArgs):
         persis_dir = Path(args.persist_dir)
-        data_dirs = glob.glob(f'{args.explore_dir}/tasks/*')
+        data_dirs = sorted(glob.glob(f'{args.explore_dir}/tasks/*/persist'))
         results: List[_ModelDeviResult] = Parallel(n_jobs=self.workers)(
-            delayed(self._process_lammps_dir)(Path(d) for d in data_dirs)
+            delayed(self._process_lammps_dir)(Path(d)) for d in data_dirs
         ) # type: ignore
 
         # generate report
@@ -77,7 +77,6 @@ class RunModelDeviTasksFn:
             dump_text(ancestor, str(result_dir / 'ANCESTOR'))
 
     def _process_lammps_dir(self, data_dir: Path):
-        assert not data_dir.is_absolute(), f'data_dir should be a relative path'
         col = self.config.metric
 
         model_devi_file = data_dir / 'model_devi.out'
@@ -134,5 +133,17 @@ def provision_model_devi(builder: DFlowBuilder, ns: str, /,
                          executor: ExecutorConfig,
                          python_app: PythonApp,
                          type_map: List[str],
+
+                         explore_data_url: str,
+                         persist_data_url: str,
                          ):
-    run_task_fn = RunModelDeviTasksFn(config, workers=python_app.max_worker, type_map=type_map)
+    run_tasks_fn = RunModelDeviTasksFn(config, workers=python_app.max_worker, type_map=type_map)
+    run_tasks_step = builder.make_python_step(run_tasks_fn, uid=f'{ns}-run-task',
+                                              setup_script=python_app.setup_script,
+                                              executor=create_dispatcher(executor, python_app.resource))(
+        RunModelDeviTasksArgs(
+            explore_dir=explore_data_url,
+            persist_dir=persist_data_url,
+        )
+    )
+    builder.add_step(run_tasks_step)

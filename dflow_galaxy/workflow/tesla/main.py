@@ -7,18 +7,18 @@ from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import not_none
 
 from .config import TeslaConfig
-from .domain import deepmd, lammps
+from .domain import deepmd, lammps, model_devi
 from .domain.lib import StepSwitch
 
 
 class RuntimeContext:
     mlp_model_url: Optional[str]
     explore_url: Optional[str]
+    screen_url: Optional[str]
 
 
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False):
-    # TODO: fix type issue in ai2-kit
-    config_raw = load_yaml_files(*config_files)  # type: ignore
+    config_raw = load_yaml_files(*config_files)
     config = TeslaConfig(**config_raw)
     config.init()
 
@@ -32,6 +32,9 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
 
     for iter_num in range(max_iter):
         iter_str = f'{iter_num:03d}'
+
+        # Labeling
+        # TODO
 
         # Training
         deepmd_cfg = config.workflow.train.deepmd
@@ -85,9 +88,25 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
         else:
             raise ValueError('No explore app specified')
 
+        # Screening
+        model_devi_cfg = config.workflow.screen.model_devi
+        if model_devi_cfg:
+            step_name = f'screen-model-devi-iter-{iter_str}'
+            runtime_ctx.screen_url = f's3://./screen-model-devi/iter/{iter_str}'
+            model_devi_executor = not_none(config.executors[not_none(config.orchestration.model_devi)])
 
-        # TODO: screen
-        # TODO: label
+            if not step_switch.shall_skip(step_name):
+                model_devi.provision_model_devi(builder, step_name,
+                                                config=model_devi_cfg,
+                                                executor=model_devi_executor,
+                                                python_app=not_none(model_devi_executor.apps.python),
+
+                                                explore_data_url=runtime_ctx.explore_url,
+                                                persist_data_url=runtime_ctx.screen_url,
+                                                type_map=type_map)
+        else:
+            raise ValueError('No screen app specified')
+
 
     builder.run()
 
