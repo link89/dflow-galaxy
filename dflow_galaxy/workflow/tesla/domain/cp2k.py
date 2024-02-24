@@ -79,7 +79,6 @@ class SetupCp2kTaskFn:
 
         assert limit > 0, 'limit should be greater than 0'
 
-        # TODO: type_map is no longer needed, should be fixed in ai2-kit
         task_dirs = make_cp2k_task_dirs(
             system_files=system_files,
             input_template=self.config.input_template,
@@ -90,7 +89,7 @@ class SetupCp2kTaskFn:
             # not supported yet
             mode='default',
             wfn_warmup_template=None,
-            # deprecated
+            # TODO: type_map is no longer needed, should be fixed in ai2-kit
             type_map=[],
         )
         for task_dir in task_dirs:
