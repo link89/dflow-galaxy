@@ -12,7 +12,7 @@ from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
 from ai2_kit.domain.constant import DP_FROZEN_MODEL
-from ai2_kit.core.artifact import Artifact
+from ai2_kit.core.artifact import Artifact, ArtifactDict
 from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp
 
 from dflow import argo_range
@@ -79,10 +79,10 @@ class SetupLammpsTasksFn:
         safe_ln(args.system_dir, SYSTEM_DIR)
 
         # resolve input data
-        data_files = []
+        data_files: List[ArtifactDict] = []
         for k in self.config.systems:
             v = deepcopy(self.systems[k])  # avoid side effect
-            v.url = f'{SYSTEM_DIR}/{k}'
+            v.url = os.path.join(SYSTEM_DIR, k)
             data_files.extend(resolve_artifact(v))
 
         # resolve model files
