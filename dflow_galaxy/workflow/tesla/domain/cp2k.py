@@ -86,6 +86,7 @@ class SetupCp2kTaskFn:
             template_vars=self.config.template_vars,
             base_dir=args.work_dir,
             limit=limit,
+            limit_method=self.config.limit_method,
             # not supported yet
             mode='default',
             wfn_warmup_template=None,

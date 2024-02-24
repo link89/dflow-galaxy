@@ -43,7 +43,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                     not step_switch.shall_skip(step_name):
                 if iter_num == 0:
                     assert cp2k_cfg.init_systems, 'init_systems should not be empty for first iteration'
-                    assert runtime_ctx.explore_url is None, f'explore_url should be None for iter 0, actual: {runtime_ctx.explore_url}'
+                    assert runtime_ctx.screen_url is None, f'explore_url should be None for iter 0, actual: {runtime_ctx.screen_url}'
 
                 for sys_key in cp2k_cfg.init_systems:
                     sys = not_none(config.datasets[sys_key])
@@ -54,7 +54,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                     cp2k_app=not_none(cp2k_executor.apps.cp2k),
                                     python_app=not_none(cp2k_executor.apps.python),
 
-                                    system_url=runtime_ctx.explore_url or 's3://./init-systems',
+                                    system_url=runtime_ctx.screen_url or 's3://./init-systems',
                                     work_dir_url=runtime_ctx.label_url,
 
                                     init=(iter_num == 0),
