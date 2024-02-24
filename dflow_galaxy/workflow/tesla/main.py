@@ -7,14 +7,15 @@ from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import not_none
 
 from .config import TeslaConfig
-from .domain import deepmd, lammps, model_devi
+from .domain import deepmd, lammps, model_devi, cp2k
 from .domain.lib import StepSwitch
 
 
 class RuntimeContext:
-    mlp_model_url: Optional[str]
+    train_url: Optional[str]
     explore_url: Optional[str]
     screen_url: Optional[str]
+    label_url: Optional[str]
 
 
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False):
@@ -34,13 +35,24 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
         iter_str = f'{iter_num:03d}'
 
         # Labeling
-        # TODO
+        cp2k_cfg = config.workflow.label.cp2k
+        if cp2k_cfg:
+            step_name = f'label-cp2k-iter-{iter_str}'
+            runtime_ctx.label_url = f's3://./label-cp2k/iter/{iter_str}'
+            cp2k_executor = not_none(config.executors[not_none(config.orchestration.cp2k)])
+
+            if not step_switch.shall_skip(step_name) and \
+                (iter_num == 0 and cp2k_cfg.init_systems):
+
+                for sys_key in cp2k_cfg.init_systems:
+                    sys = not_none(config.datasets[sys_key])
+                    builder.s3_upload(sys.url, f'init-systems/{sys_key}', cache=True)
 
         # Training
         deepmd_cfg = config.workflow.train.deepmd
         if deepmd_cfg:
             step_name = f'train-deepmd-iter-{iter_str}'
-            runtime_ctx.mlp_model_url = f's3://./train-deepmd/iter/{iter_str}'
+            runtime_ctx.train_url = f's3://./train-deepmd/iter/{iter_str}'
             deepmd_executor = not_none(config.executors[not_none(config.orchestration.deepmd)])
 
             if not step_switch.shall_skip(step_name):
@@ -55,7 +67,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
 
                                         init_dataset_url='s3://./init-dataset',
                                         iter_dataset_url='s3://./iter-dataset',
-                                        work_dir_url=runtime_ctx.mlp_model_url,
+                                        work_dir_url=runtime_ctx.train_url,
                                         type_map=type_map)
 
         else:
@@ -79,7 +91,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                         lammps_app=not_none(lammps_executor.apps.lammps),
                                         python_app=not_none(lammps_executor.apps.python),
 
-                                        mlp_model_url=runtime_ctx.mlp_model_url,
+                                        mlp_model_url=runtime_ctx.train_url,
                                         systems_url='s3://./explore-dataset',
                                         work_dir_url=runtime_ctx.explore_url,
                                         type_map=type_map,

@@ -70,7 +70,7 @@ def bash_iter_ls_slice(search_pattern: str, /, n: int, i: SliceIndex, script: Li
     ])
 
 
-def bash_iter_var(in_var: str, script: ListStr, it_var='ITEM'):
+def bash_iter_var(in_var: str, script: ListStr, it_var='ITEM', report_progress=True):
     """
     Generate a bash snippet to iterate over lines of a variable
 
@@ -78,9 +78,18 @@ def bash_iter_var(in_var: str, script: ListStr, it_var='ITEM'):
     :param script: bash script to process each line
     """
     script = ensure_str(script)
-    return f"""while IFS= read -r {it_var}; do
+
+    argo_progress_init, argo_progress_count  = '', ''
+    if report_progress:
+        argo_progress_init = f'_ARGO_N=$(grep . <<< "${in_var}" | wc -l) && _ARGO_I=0 && echo "$_ARGO_I/$_ARGO_N" > $ARGO_PROGRESS_FILE'
+        argo_progress_count = '_ARGO_I=$((_ARGO_I + 1)) && echo "$_ARGO_I/_ARGO_N" > $ARGO_PROGRESS_FILE'
+
+    return f"""{argo_progress_init}
+while IFS= read -r {it_var}; do
 {script}
+{argo_progress_count}
 done <<< "${in_var}" """
+
 
 
 def bash_slice(in_var: str, n: int, i: SliceIndex, out_var: str,
@@ -94,7 +103,7 @@ def bash_slice(in_var: str, n: int, i: SliceIndex, out_var: str,
     :param i: chunk index
     :param out_var: variable name to store the selected chunk
     """
-    return f"""echo 'bash_slice({in_var}, {n}, {i}, {out_var})'
+    return f"""# bash_slice({in_var}, {n}, {i}, {out_var})
 {out_var}=$(_IN_DATA="${in_var}" _SLICE_N={n} _SLICE_I={i} {python_cmd} << EOF
 import sys,os
 lines = os.environ['_IN_DATA'].split('\\n')
@@ -108,7 +117,7 @@ end = (i + 1) * chunk_size if i < n - 1 else len(lines)
 sys.stdout.write('\\n'.join(lines[start:end]))
 EOF
 )
-echo 'bash_slice end' """
+# bash_slice end"""
 
 
 def yes_or_no(msg: str, default: bool = False):
