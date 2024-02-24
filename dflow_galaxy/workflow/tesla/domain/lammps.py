@@ -13,7 +13,7 @@ from dflow_galaxy.core import types
 from ai2_kit.domain.lammps import make_lammps_task_dirs
 from ai2_kit.domain.constant import DP_FROZEN_MODEL
 from ai2_kit.core.artifact import Artifact, ArtifactDict
-from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp
+from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp, dump_text
 
 from dflow import argo_range
 
@@ -131,8 +131,7 @@ class SetupLammpsTasksFn:
         # write ancestor to the task dirs
         for task_dir in task_dirs:
             path = os.path.join(task_dir['url'], 'ANCESTOR')
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(task_dir['attrs']['ancestor'])
+            dump_text(task_dir['attrs']['ancestor'], path)
 
 
 @dataclass(frozen=True)

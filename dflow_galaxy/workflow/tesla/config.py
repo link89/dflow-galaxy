@@ -16,7 +16,7 @@ class AppsConfig(BaseModel):
     python: dispatcher.PythonApp
     deepmd: Optional['deepmd.DeepmdApp'] = None
     lammps: Optional['lammps.LammpsApp'] = None
-    cp2k: Optional['cp2k.Cp2kContext'] = None
+    cp2k: Optional['cp2k.Cp2kApp'] = None
 
 
 class Orchestration(BaseModel):
@@ -31,7 +31,7 @@ class TeslaExecutorConfig(dispatcher.ExecutorConfig):
 
 
 class LabelConfig(BaseModel):
-    ...
+    cp2k: Optional['cp2k.Cp2kConfig']
 
 
 class TrainConfig(BaseModel):

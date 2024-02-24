@@ -30,7 +30,7 @@ class RunModelDeviTasksArgs:
     explore_dir: types.InputArtifact
     persist_dir: types.OutputArtifact
 
-_ModelDeviResult = namedtuple('_ModelDeviResult', ['data_dir', 'decent_xyz', 'ancestor', 'total', 'n_good', 'n_decent', 'n_poor'])
+ModelDeviResult = namedtuple('_ModelDeviResult', ['data_dir', 'decent_xyz', 'ancestor', 'total', 'n_good', 'n_decent', 'n_poor'])
 
 class RunModelDeviTasksFn:
 
@@ -43,7 +43,7 @@ class RunModelDeviTasksFn:
         persis_dir = Path(args.persist_dir)
         persis_dir.mkdir(exist_ok=True)
         data_dirs = sorted(glob.glob(f'{args.explore_dir}/tasks/*/persist'))
-        results: List[_ModelDeviResult] = Parallel(n_jobs=self.workers)(
+        results: List[ModelDeviResult] = Parallel(n_jobs=self.workers)(
             delayed(self._process_lammps_dir)(Path(d)) for d in data_dirs
         ) # type: ignore
 
@@ -70,10 +70,10 @@ class RunModelDeviTasksFn:
                 print(f'no decent files for ancestor {ancestor}')
                 continue
 
-            result_dir: Path = persis_dir / ancestor
-            result_dir.mkdir(exist_ok=True)
+            result_dir: Path = persis_dir / 'system' / ancestor
+            result_dir.mkdir(parents=True, exist_ok=True)
 
-            # merge the xyz files
+            # merge xyz files, use cat for the sake of performance
             os.system(f'cat {" ".join(decent_xyz_files)} > {result_dir / "decent.xyz"}')
             dump_text(ancestor, str(result_dir / 'ANCESTOR'))
 
@@ -104,10 +104,11 @@ class RunModelDeviTasksFn:
         if len(decent_df) > 0:
             decent_trj = data_dir / 'decent.lammpstrj'
             decent_xyz = data_dir / 'decent.xyz'
+            # use cat for the sake of performance
             os.system(f'cat {" ".join(decent_files)} > {decent_trj}')
             self._dump_lammpstrj_to_xyz(decent_trj, decent_xyz)
 
-        return _ModelDeviResult(
+        return ModelDeviResult(
             data_dir=data_dir,
             decent_xyz=decent_xyz,
             ancestor=load_text(data_dir / 'ANCESTOR'),
