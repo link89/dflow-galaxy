@@ -9,7 +9,6 @@ from .domain import deepmd, lammps, model_devi, cp2k
 class GeneralConfig(BaseModel):
     type_map: List[str]
     mass_map: List[float]
-    max_iters: int = 1
 
 
 class AppsConfig(BaseModel):

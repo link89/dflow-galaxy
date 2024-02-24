@@ -18,20 +18,19 @@ class RuntimeContext:
     label_url: Optional[str]
 
 
-def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False):
+def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False, iters: int = 1):
     config_raw = load_yaml_files(*config_files)
     config = TeslaConfig(**config_raw)
     config.init()
 
     type_map = config.workflow.general.type_map
     mass_map = config.workflow.general.mass_map
-    max_iter = config.workflow.general.max_iters
 
     builder = DFlowBuilder(name='tesla', s3_prefix=s3_prefix, debug=debug)
     step_switch = StepSwitch(skip)
     runtime_ctx = RuntimeContext()
 
-    for iter_num in range(max_iter):
+    for iter_num in range(iters):
         iter_str = f'{iter_num:03d}'
 
         # Labeling
@@ -40,13 +39,23 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             step_name = f'label-cp2k-iter-{iter_str}'
             runtime_ctx.label_url = f's3://./label-cp2k/iter/{iter_str}'
             cp2k_executor = not_none(config.executors[not_none(config.orchestration.cp2k)])
-
             if not step_switch.shall_skip(step_name) and \
-                (iter_num == 0 and cp2k_cfg.init_systems):
-
+                (iter_num > 0 or cp2k_cfg.init_systems):  # skip iter 0 if no init systems provided
+                assert iter_num == 0 and runtime_ctx.explore_url is None, 'explore_url should be None for iter 0'
                 for sys_key in cp2k_cfg.init_systems:
                     sys = not_none(config.datasets[sys_key])
                     builder.s3_upload(sys.url, f'init-systems/{sys_key}', cache=True)
+                cp2k.provision_cp2k(builder, step_name,
+                                    config=cp2k_cfg,
+                                    executor=cp2k_executor,
+                                    cp2k_app=not_none(cp2k_executor.apps.cp2k),
+                                    python_app=not_none(cp2k_executor.apps.python),
+
+                                    system_url=runtime_ctx.explore_url or 's3://./init-systems',
+                                    work_dir_url=runtime_ctx.label_url,
+
+                                    init=(iter_num == 0),
+                                    systems=config.datasets,)
 
         # Training
         deepmd_cfg = config.workflow.train.deepmd
@@ -83,7 +92,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             if not step_switch.shall_skip(step_name):
                 for sys_key in lammps_cfg.systems:
                     sys = not_none(config.datasets[sys_key])
-                    builder.s3_upload(sys.url, f'explore-dataset/{sys_key}', cache=True)
+                    builder.s3_upload(sys.url, f'explore-systems/{sys_key}', cache=True)
 
                 lammps.provision_lammps(builder, step_name,
                                         config=lammps_cfg,
@@ -92,7 +101,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                         python_app=not_none(lammps_executor.apps.python),
 
                                         mlp_model_url=runtime_ctx.train_url,
-                                        systems_url='s3://./explore-dataset',
+                                        systems_url='s3://./explore-systems',
                                         work_dir_url=runtime_ctx.explore_url,
                                         type_map=type_map,
                                         mass_map=mass_map,

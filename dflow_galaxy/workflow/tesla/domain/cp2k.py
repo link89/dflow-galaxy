@@ -19,8 +19,7 @@ from dflow import argo_range
 
 from .lib import resolve_artifact
 
-INIT_SYSTEM_DIR = './init-systems'
-ITER_SYSTEM_DIR = './iter-systems'
+SYSTEM_DIR = './system_dir'
 
 
 class Cp2kApp(BaseApp):
@@ -39,8 +38,7 @@ class Cp2kConfig(BaseModel):
 
 @dataclass(frozen=True)
 class SetupCp2kTasksArgs:
-    init_system_dir: types.InputArtifact
-    iter_system_dir: types.InputArtifact
+    system_dir: types.InputArtifact
     work_dir: types.OutputArtifact
 
 
@@ -52,8 +50,7 @@ class SetupCp2kTaskFn:
         self.systems = systems
 
     def __call__(self, args: SetupCp2kTasksArgs):
-        safe_ln(args.init_system_dir, INIT_SYSTEM_DIR)
-        safe_ln(args.iter_system_dir, ITER_SYSTEM_DIR)
+        safe_ln(args.system_dir, SYSTEM_DIR)
 
         limit = self.config.limit
 
@@ -64,11 +61,11 @@ class SetupCp2kTaskFn:
             assert self.config.init_systems, 'init_systems should not be empty for first iteration'
             for k in self.config.init_systems:
                 v = deepcopy(self.systems[k])  # avoid side effect
-                v.url = os.path.join(INIT_SYSTEM_DIR, k)
+                v.url = os.path.join(SYSTEM_DIR, k)
                 system_files.extend(resolve_artifact(v))
         else:
             # handle iter systems
-            system_dirs = glob.glob(f'{ITER_SYSTEM_DIR}/system/*')  # search pattern is defined by model_devi
+            system_dirs = glob.glob(f'{SYSTEM_DIR}/system/*')  # search pattern is defined by model_devi
             for sys_dir in system_dirs:
                 sys_dir = Path(sys_dir)
                 ancestor = load_text(sys_dir / 'ANCESTOR')
@@ -103,8 +100,7 @@ def provision_cp2k(builder: DFlowBuilder, ns: str, /,
                    cp2k_app: Cp2kApp,
                    python_app: PythonApp,
 
-                   init_system_url: str,
-                   iter_system_url: str,
+                   system_url: str,
                    work_dir_url: str,
 
                    init: bool,
@@ -115,8 +111,7 @@ def provision_cp2k(builder: DFlowBuilder, ns: str, /,
                                                 setup_script=python_app.setup_script,
                                                 executor=create_dispatcher(executor, python_app.resource))(
         SetupCp2kTasksArgs(
-            init_system_dir=init_system_url,
-            iter_system_dir=iter_system_url,
+            system_dir=system_url,
             work_dir=work_dir_url,
         )
     )
