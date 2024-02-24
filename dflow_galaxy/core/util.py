@@ -51,6 +51,14 @@ def select_chunk(in_list: list, n: int, i: int):
     return list_split(sorted(in_list), n)[i]
 
 
+def inspect_dir(dir: str):
+    os.system(bash_inspect_dir(dir))
+
+
+def bash_inspect_dir(dir: str):
+    return f"""echo "Show content of {dir}" && find {dir}"""
+
+
 def bash_iter_ls_slice(search_pattern: str, /, n: int, i: SliceIndex, script: ListStr, opt: str = '',
                        it_var='ITEM', python_cmd: str = 'python'):
     """

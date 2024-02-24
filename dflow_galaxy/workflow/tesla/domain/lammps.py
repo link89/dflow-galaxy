@@ -7,7 +7,7 @@ import os
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd, inspect_dir, bash_inspect_dir
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
@@ -76,7 +76,9 @@ class SetupLammpsTasksFn:
         # dflow didn't provide a unified file namespace,
         # so we have to link dataset to a fixed path and use relative path to access it
         safe_ln(args.model_dir, MODEL_DIR)
+        inspect_dir(MODEL_DIR)
         safe_ln(args.system_dir, SYSTEM_DIR)
+        inspect_dir(SYSTEM_DIR)
 
         # resolve input data
         data_files: List[ArtifactDict] = []

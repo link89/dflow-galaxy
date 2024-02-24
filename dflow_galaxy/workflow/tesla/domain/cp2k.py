@@ -8,7 +8,7 @@ import os
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd, bash_inspect_dir, inspect_dir
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.cp2k import make_cp2k_task_dirs
@@ -51,6 +51,7 @@ class SetupCp2kTaskFn:
 
     def __call__(self, args: SetupCp2kTasksArgs):
         safe_ln(args.system_dir, SYSTEM_DIR)
+        inspect_dir(SYSTEM_DIR)
 
         limit = self.config.limit
 
@@ -75,6 +76,8 @@ class SetupCp2kTaskFn:
                     'attrs': deepcopy(self.systems[ancestor].attrs),
                 }
                 system_files.append(a_dict)  # type: ignore
+
+        assert limit > 0, 'limit should be greater than 0'
 
         # TODO: type_map is no longer needed, should be fixed in ai2-kit
         task_dirs = make_cp2k_task_dirs(

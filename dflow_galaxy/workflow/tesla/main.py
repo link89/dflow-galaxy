@@ -39,9 +39,12 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             step_name = f'label-cp2k-iter-{iter_str}'
             runtime_ctx.label_url = f's3://./label-cp2k/iter/{iter_str}'
             cp2k_executor = not_none(config.executors[not_none(config.orchestration.cp2k)])
-            if not step_switch.shall_skip(step_name) and \
-                (iter_num > 0 or cp2k_cfg.init_systems):  # skip iter 0 if no init systems provided
-                assert iter_num == 0 and runtime_ctx.explore_url is None, 'explore_url should be None for iter 0'
+            if (iter_num > 0 or cp2k_cfg.init_systems) and \
+                    not step_switch.shall_skip(step_name):
+                if iter_num == 0:
+                    assert cp2k_cfg.init_systems, 'init_systems should not be empty for first iteration'
+                    assert runtime_ctx.explore_url is None, f'explore_url should be None for iter 0, actual: {runtime_ctx.explore_url}'
+
                 for sys_key in cp2k_cfg.init_systems:
                     sys = not_none(config.datasets[sys_key])
                     builder.s3_upload(sys.url, f'init-systems/{sys_key}', cache=True)
