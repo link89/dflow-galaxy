@@ -88,7 +88,7 @@ class SetupLammpsTasksFn:
             data_files.extend(resolve_artifact(v))
 
         # resolve model files
-        search_pattern = f'{MODEL_DIR}/*/persist/{DP_FROZEN_MODEL}'
+        search_pattern = f'{MODEL_DIR}/tasks/*/persist/{DP_FROZEN_MODEL}'
         model_files = glob.glob(search_pattern)
         assert model_files, f'no model files found in {search_pattern}'
 

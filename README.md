@@ -25,3 +25,6 @@ For developers, please use `poetry` to bootstrap the development environment:
 poetry install
 poetry shell
 ```
+
+## Manuals
+* [TESLA Workflow](doc/tesla.md)

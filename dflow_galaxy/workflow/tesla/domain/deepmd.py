@@ -115,7 +115,7 @@ class SetupDeepmdTaskFn:
                               model_num=self.config.model_num,
                               train_systems=train_dataset_dirs,
                               type_map=self.type_map,
-                              base_dir=args.work_dir,
+                              base_dir=f'{args.work_dir}/tasks',
                               # TODO: support the following parameters
                               isolate_outliers=False,
                               validation_systems=[],
@@ -150,7 +150,7 @@ class RunDeepmdTrainingFn:
             bash_inspect_dir(args.work_dir),
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
-                '*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
+                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
                 script=[
                     '# dp train',
                     'pushd $ITEM',

@@ -45,18 +45,20 @@ class ScreenConfig(BaseModel):
     model_devi: Optional['model_devi.ModelDeviConfig']
 
 
+class UpdateConfig(BaseModel):
+    until_iter: int
+    patch: dict
+
+
 class WorkflowConfig(BaseModel):
     general: GeneralConfig
     label: LabelConfig
     train: TrainConfig
     explore: ExploreConfig
     screen: ScreenConfig
-    update: Optional['UpdateConfig']
+    update: Optional[UpdateConfig] = None
 
 
-class UpdateConfig(BaseModel):
-    util_iter: int
-    patch: dict
 
 
 class TeslaConfig(BaseModel):

@@ -26,7 +26,7 @@ class RuntimeContext:
     label_app: LabelApp
 
 
-def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False, iters: int = 1):
+def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False, max_iters: int = 1):
     config_raw = load_yaml_files(*config_files)
     config = TeslaConfig(**config_raw)
     config.init()
@@ -37,7 +37,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
     runtime_ctx = RuntimeContext()
 
     raw_workflow_cfg = config.workflow
-    for iter_num in range(iters):
+    for iter_num in range(max_iters):
         workflow_cfg = WorkflowConfig(**raw_workflow_cfg)
 
         type_map = workflow_cfg.general.type_map
@@ -154,7 +154,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             raise ValueError('No screen app specified')
 
         if workflow_cfg.update:
-            if iter_num == workflow_cfg.update.util_iter:
+            if iter_num == workflow_cfg.update.until_iter:
                 logger.info('Updating workflow config at iter %d', iter_num)
                 raw_workflow_cfg = merge_dict(deepcopy(raw_workflow_cfg), workflow_cfg.update.patch)
 
