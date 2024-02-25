@@ -126,6 +126,7 @@ class RunCp2kTasksFn:
                     '',
                     '# persist result',
                     f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
+                    'mkdir -p $PERSIST_DIR',
                     'mv *.done output $PERSIST_DIR',
                     'popd',
                 ]
