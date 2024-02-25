@@ -113,8 +113,9 @@ class RunCp2kTasksFn:
         c = self.context.concurrency
 
         script = [
-            bash_inspect_dir(args.work_dir),
+            f'mkdir -p {args.persist_dir}',
             f"pushd {args.work_dir}",
+            bash_inspect_dir('.'),
             bash_iter_ls_slice(
                 '*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
                 script=[
@@ -125,7 +126,6 @@ class RunCp2kTasksFn:
                     '',
                     '# persist result',
                     f'PERSIST_DIR={args.persist_dir}/$ITEM/persist/',
-                    'mkdir -p $PERSIST_DIR',
                     'mv *.done output $PERSIST_DIR',
                     'popd',
                 ]
@@ -163,7 +163,7 @@ def provision_cp2k(builder: DFlowBuilder, ns: str, /,
 
     run_tasks_fn = RunCp2kTasksFn(config, cp2k_app)
     run_tasks_step = builder.make_bash_step(run_tasks_fn, uid=f'{ns}-run-task',
-                                            setup_script=python_app.setup_script,
+                                            setup_script=cp2k_app.setup_script,
                                             with_param=argo_range(cp2k_app.concurrency),
                                             executor=create_dispatcher(executor, cp2k_app.resource))(
         RunCp2kTasksArgs(

@@ -89,14 +89,17 @@ def bash_iter_var(in_var: str, script: ListStr, it_var='ITEM', report_progress=T
 
     argo_progress_init, argo_progress_count  = '', ''
     if report_progress:
-        argo_progress_init = f'_ARGO_N=$(grep . <<< "${in_var}" | wc -l) && _ARGO_I=0 && echo "$_ARGO_I/$_ARGO_N" > $ARGO_PROGRESS_FILE'
-        argo_progress_count = '_ARGO_I=$((_ARGO_I + 1)) && echo "$_ARGO_I/_ARGO_N" > $ARGO_PROGRESS_FILE'
+        argo_progress_init = f'_ARGO_I=0 && echo "$_ARGO_I/$_N_LINES" > $ARGO_PROGRESS_FILE'
+        argo_progress_count = '_ARGO_I=$((_ARGO_I + 1)) && echo "$_ARGO_I/$_N_LINES" > $ARGO_PROGRESS_FILE'
 
-    return f"""{argo_progress_init}
+    return f"""_N_LINES=$(grep . <<< "${in_var}" | wc -l)
+{argo_progress_init}
+if [ $_N_LINES -ne 0 ]; then
 while IFS= read -r {it_var}; do
 {script}
 {argo_progress_count}
-done <<< "${in_var}" """
+done <<< "${in_var}"
+fi"""
 
 
 

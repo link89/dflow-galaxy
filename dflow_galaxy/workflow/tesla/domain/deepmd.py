@@ -102,6 +102,7 @@ class RunDeepmdTrainingFn:
         c = self.context.concurrency
 
         script = [
+            f'mkdir -p {args.persist_dir}',
             bash_inspect_dir(args.work_dir),
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(

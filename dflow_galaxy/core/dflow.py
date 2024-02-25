@@ -137,6 +137,7 @@ def bash_build_template(py_fn: Callable,
     source = [
         '#!/bin/bash',
         'set -e',
+        'ARGO_PROGRESS_FILE=${ARGO_PROGRESS_FILE:-./argo_progress_file.txt}',
         setup_script,
         ''
         f'mkdir -p {shlex.quote(output_artifacts_dir)}',
@@ -224,6 +225,8 @@ def python_build_template(py_fn: Callable,
 
     source = [
         '#!/bin/bash',
+        'set -e',
+        'ARGO_PROGRESS_FILE=${ARGO_PROGRESS_FILE:-./argo_progress_file.txt}',
         '',
         setup_script,
         '',
