@@ -13,7 +13,7 @@ from dflow_galaxy.core import types
 
 from ai2_kit.domain.cp2k import make_cp2k_task_dirs
 from ai2_kit.core.artifact import Artifact, ArtifactDict
-from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp, list_sample, load_text, dump_text
+from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp, list_sample, load_text, dump_text, ensure_dir
 
 from dflow import argo_range
 
@@ -83,7 +83,7 @@ class SetupCp2kTaskFn:
             system_files=system_files,
             input_template=self.config.input_template,
             template_vars=self.config.template_vars,
-            base_dir=args.work_dir,
+            base_dir=ensure_dir(f'{args.work_dir}/tasks'),
             limit=limit,
             limit_method=self.config.limit_method,
             # not supported yet
@@ -117,7 +117,7 @@ class RunCp2kTasksFn:
             f"pushd {args.work_dir}",
             bash_inspect_dir('.'),
             bash_iter_ls_slice(
-                '*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
+                'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
                 script=[
                     'pushd $ITEM',
                     'mv persist/* . || true  # recover checkpoint',
@@ -137,7 +137,7 @@ class RunCp2kTasksFn:
 
     def _build_cp2k_script(self):
         cmd = f'''{self.context.cp2k_cmd} -i input.inp &> output'''
-        return cmd
+        return cmd_cp(cmd, 'cp2k.done')
 
 
 def provision_cp2k(builder: DFlowBuilder, ns: str, /,

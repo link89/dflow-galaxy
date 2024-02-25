@@ -1,18 +1,26 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
+from itertools import groupby
+from pathlib import Path
+import glob
 
 from ai2_kit.domain.deepmd import make_deepmd_task_dirs
-from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp
+from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp, load_text
 from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_MODEL
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, bash_ln_cmd, bash_inspect_dir, inspect_dir
+from dflow_galaxy.core.log import get_logger
 from dflow_galaxy.core import types
 
 from dflow import argo_range
+import dpdata
 
+from .lib import LabelApp
+
+logger = get_logger(__name__)
 
 INIT_DATASET_DIR = './init-dataset'
 ITER_DATASET_DIR = './iter-dataset'
@@ -27,6 +35,7 @@ class DeepmdConfig(BaseModel):
     init_dataset: List[str] = []
     input_template: dict = {}
     compress_model: bool = False
+    ignore_error: bool = False
 
 
 @dataclass(frozen=True)
@@ -36,11 +45,46 @@ class UpdateNewTrainingDatasetArgs:
 
 
 class UpdateNewTrainingDatasetStep:
-    def __init__(self, config: DeepmdConfig):
+    def __init__(self, config: DeepmdConfig, iter_str: str, label_app: LabelApp, type_map: List[str]):
         self.config = config
+        self.iter_str = iter_str
+        self.label_app = label_app
+        self.type_map = type_map
 
     def __call__(self, args: UpdateNewTrainingDatasetArgs):
-        ...
+        dp_sys_list:List[Tuple[str, dpdata.LabeledSystem]] = []
+
+        # parse label data
+        if self.label_app == 'cp2k':
+            cp2k_dirs = glob.glob(f'{args.label_dir}/*')
+            for cp2k_dir in cp2k_dirs:
+                try:
+                    ancestor = load_text(f'{cp2k_dir}/ANCESTOR')
+                    dp_sys = dpdata.LabeledSystem(f'{cp2k_dir}/output', fmt='cp2k/output', type_map=self.type_map)
+                    if dp_sys is not None and len(dp_sys) > 0:
+                        dp_sys_list.append((ancestor,dp_sys))
+                    else:
+                        logger.warn(f'Ignore empty dp system: {cp2k_dir}')
+                except Exception as e:
+                    logger.exception(f'Failed to load cp2k output: {cp2k_dir}')
+                    if not self.config.ignore_error:
+                        raise e
+        else:
+            raise ValueError(f'Unsupported label app: {self.label_app}')
+
+        # dump data
+        dataset_dir = Path(args.iter_dataset_dir) / self.iter_str
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+
+        # group dataset by ancestor
+        dp_sys_list = sorted(dp_sys_list, key=lambda x: x[0])  # sorted by ancestor
+        for ancestor, group in groupby(dp_sys_list, key=lambda x: x[0]):
+            group = list(group)
+            assert ancestor, 'ancestor should not be empty'
+            dataset = group[0][1]
+            for _a, dp_sys in group[1:]:
+                dataset += dp_sys
+            dataset.to_deepmd_npy(dataset_dir / ancestor, set_size=len(dataset), type_map=self.type_map)  # type: ignore
 
 
 @dataclass(frozen=True)
@@ -64,8 +108,8 @@ class SetupDeepmdTaskFn:
         safe_ln(args.iter_dataset_dir, ITER_DATASET_DIR)
         inspect_dir(ITER_DATASET_DIR)
 
-        # TODO: handle iter dataset
         train_dataset_dirs = [ f'{INIT_DATASET_DIR}/{ds}' for ds in self.config.init_dataset]
+        train_dataset_dirs.extend(glob.glob(f'{ITER_DATASET_DIR}/*/*'))
 
         make_deepmd_task_dirs(input_template=self.config.input_template,
                               model_num=self.config.model_num,

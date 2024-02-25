@@ -1,7 +1,12 @@
-from typing import List
+from typing import List, Literal
 from ai2_kit.core.artifact import Artifact, ArtifactDict
 import glob
 from dflow_galaxy.core.util import yes_or_no
+
+
+LabelApp = Literal['cp2k', 'vasp', 'abacus', 'dpa2']
+TrainApp = Literal['deepmd']
+ExploreApp = Literal['lammps']
 
 
 def resolve_artifact(a: Artifact) -> List[ArtifactDict]:
