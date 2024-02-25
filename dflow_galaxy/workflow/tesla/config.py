@@ -1,4 +1,4 @@
-from typing import List, Mapping, Optional
+from typing import List, Mapping, Optional, Any
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core import dispatcher
 from ai2_kit.core.artifact import Artifact
@@ -51,13 +51,19 @@ class WorkflowConfig(BaseModel):
     train: TrainConfig
     explore: ExploreConfig
     screen: ScreenConfig
+    update: Optional['UpdateConfig']
+
+
+class UpdateConfig(BaseModel):
+    util_iter: int
+    patch: dict
 
 
 class TeslaConfig(BaseModel):
     executors: Mapping[str, TeslaExecutorConfig]
     orchestration: Orchestration
     datasets: Mapping[str, Artifact]
-    workflow: WorkflowConfig
+    workflow: Any
 
     def init(self):
         for k, v in self.datasets.items():

@@ -1,15 +1,18 @@
 from typing import Optional
+from copy import deepcopy
 
-from ai2_kit.core.util import load_yaml_files
+from ai2_kit.core.util import load_yaml_files, merge_dict
 from ai2_kit.core.cmd import CmdGroup
 
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core.util import not_none
+from dflow_galaxy.core.log import get_logger
 
-from .config import TeslaConfig
+from .config import TeslaConfig, WorkflowConfig
 from .domain import deepmd, lammps, model_devi, cp2k
 from .domain.lib import StepSwitch, LabelApp, ExploreApp
 
+logger = get_logger(__name__)
 
 class RuntimeContext:
     train_url: Optional[str]
@@ -28,18 +31,22 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
     config = TeslaConfig(**config_raw)
     config.init()
 
-    type_map = config.workflow.general.type_map
-    mass_map = config.workflow.general.mass_map
 
     builder = DFlowBuilder(name='tesla', s3_prefix=s3_prefix, debug=debug)
     step_switch = StepSwitch(skip)
     runtime_ctx = RuntimeContext()
 
+    raw_workflow_cfg = config.workflow
     for iter_num in range(iters):
+        workflow_cfg = WorkflowConfig(**raw_workflow_cfg)
+
+        type_map = workflow_cfg.general.type_map
+        mass_map = workflow_cfg.general.mass_map
+
         iter_str = f'{iter_num:03d}'
 
         # Labeling
-        cp2k_cfg = config.workflow.label.cp2k
+        cp2k_cfg = workflow_cfg.label.cp2k
         if cp2k_cfg:
             step_name = f'label-cp2k-iter-{iter_str}'
             runtime_ctx.label_app = 'cp2k'
@@ -68,7 +75,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                     systems=config.datasets,)
 
         # Training
-        deepmd_cfg = config.workflow.train.deepmd
+        deepmd_cfg = workflow_cfg.train.deepmd
         if deepmd_cfg:
             step_name = f'train-deepmd-iter-{iter_str}'
             runtime_ctx.train_url = f's3://./train-deepmd/iter/{iter_str}'
@@ -97,7 +104,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             raise ValueError('No training app specified')
 
         # Exploration
-        lammps_cfg = config.workflow.explore.lammps
+        lammps_cfg = workflow_cfg.explore.lammps
         if lammps_cfg:
             step_name = f'explore-lammps-iter-{iter_str}'
             runtime_ctx.explore_url = f's3://./explore-lammps/iter/{iter_str}'
@@ -126,7 +133,7 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
             raise ValueError('No explore app specified')
 
         # Screening
-        model_devi_cfg = config.workflow.screen.model_devi
+        model_devi_cfg = workflow_cfg.screen.model_devi
         if model_devi_cfg:
             step_name = f'screen-model-devi-iter-{iter_str}'
             runtime_ctx.screen_url = f's3://./screen-model-devi/iter/{iter_str}'
@@ -145,6 +152,11 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                                 type_map=type_map)
         else:
             raise ValueError('No screen app specified')
+
+        if workflow_cfg.update:
+            if iter_num == workflow_cfg.update.util_iter:
+                logger.info('Updating workflow config at iter %d', iter_num)
+                raw_workflow_cfg = merge_dict(deepcopy(raw_workflow_cfg), workflow_cfg.update.patch)
 
 
     builder.run()
