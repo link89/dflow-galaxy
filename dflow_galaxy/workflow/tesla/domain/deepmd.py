@@ -56,7 +56,7 @@ class UpdateDatasetFn:
 
         # parse label data
         if self.label_app == 'cp2k':
-            cp2k_dirs = glob.glob(f'{args.label_dir}/*')
+            cp2k_dirs = glob.glob(f'{args.label_dir}/tasks/*/persist')
             for cp2k_dir in cp2k_dirs:
                 try:
                     ancestor = load_text(f'{cp2k_dir}/ANCESTOR')

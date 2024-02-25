@@ -138,7 +138,9 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                                 executor=model_devi_executor,
                                                 python_app=not_none(model_devi_executor.apps.python),
 
+                                                explore_app=runtime_ctx.explore_app,
                                                 explore_data_url=runtime_ctx.explore_url,
+
                                                 persist_data_url=runtime_ctx.screen_url,
                                                 type_map=type_map)
         else:

@@ -21,6 +21,9 @@ from dflow_galaxy.core.util import inspect_dir
 
 from ai2_kit.core.util import load_text, dump_text
 
+from .lib import ExploreApp
+
+
 class ModelDeviConfig(BaseModel):
     metric: Literal["max_devi_v",  "min_devi_v",  "avg_devi_v",  "max_devi_f",  "min_devi_f",  "avg_devi_f"] = 'max_devi_f'
     decent_range: Tuple[float, float]
@@ -35,19 +38,23 @@ ModelDeviResult = namedtuple('_ModelDeviResult', ['data_dir', 'decent_xyz', 'anc
 
 class RunModelDeviTasksFn:
 
-    def __init__(self, config: ModelDeviConfig, workers: int, type_map: List[str]):
+    def __init__(self, config: ModelDeviConfig, workers: int, type_map: List[str], explore_app: ExploreApp):
         self.config = config
         self.workers = workers
         self.type_map = type_map
+        self.explore_app = explore_app
 
     def __call__(self, args: RunModelDeviTasksArgs):
         inspect_dir(args.explore_dir)
         persis_dir = Path(args.persist_dir)
         persis_dir.mkdir(exist_ok=True)
-        data_dirs = sorted(glob.glob(f'{args.explore_dir}/tasks/*/persist'))
-        results: List[ModelDeviResult] = Parallel(n_jobs=self.workers)(
-            delayed(self._process_lammps_dir)(Path(d)) for d in data_dirs
-        ) # type: ignore
+        if self.explore_app == 'lammps':
+            data_dirs = sorted(glob.glob(f'{args.explore_dir}/tasks/*/persist'))
+            results: List[ModelDeviResult] = Parallel(n_jobs=self.workers)(
+                delayed(self._process_lammps_dir)(Path(d)) for d in data_dirs
+            ) # type: ignore
+        else:
+            raise ValueError(f'unsupported explore app: {self.explore_app}')
 
         # generate report
         headers = ['src', 'total', 'good', 'decent', 'poor', 'good%', 'decent%', 'poor%']
@@ -138,10 +145,12 @@ def provision_model_devi(builder: DFlowBuilder, ns: str, /,
                          python_app: PythonApp,
                          type_map: List[str],
 
+                         explore_app: ExploreApp,
                          explore_data_url: str,
                          persist_data_url: str,
                          ):
-    run_tasks_fn = RunModelDeviTasksFn(config, workers=python_app.max_worker, type_map=type_map)
+    run_tasks_fn = RunModelDeviTasksFn(config, workers=python_app.max_worker,
+                                       type_map=type_map, explore_app=explore_app)
     run_tasks_step = builder.make_python_step(run_tasks_fn, uid=f'{ns}-run-task',
                                               setup_script=python_app.setup_script,
                                               executor=create_dispatcher(executor, python_app.resource))(
