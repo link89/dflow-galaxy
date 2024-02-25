@@ -8,14 +8,19 @@ from dflow_galaxy.core.util import not_none
 
 from .config import TeslaConfig
 from .domain import deepmd, lammps, model_devi, cp2k
-from .domain.lib import StepSwitch
+from .domain.lib import StepSwitch, LabelApp, ExploreApp
 
 
 class RuntimeContext:
     train_url: Optional[str]
+
     explore_url: Optional[str]
+    explore_app: ExploreApp
+
     screen_url: Optional[str]
+
     label_url: Optional[str]
+    label_app: LabelApp
 
 
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False, iters: int = 1):
@@ -37,7 +42,9 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
         cp2k_cfg = config.workflow.label.cp2k
         if cp2k_cfg:
             step_name = f'label-cp2k-iter-{iter_str}'
+            runtime_ctx.label_app = 'cp2k'
             runtime_ctx.label_url = f's3://./label-cp2k/iter/{iter_str}'
+
             cp2k_executor = not_none(config.executors[not_none(config.orchestration.cp2k)])
             if (iter_num > 0 or cp2k_cfg.init_systems) and \
                     not step_switch.shall_skip(step_name):
@@ -77,9 +84,13 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                                         deepmd_app=not_none(deepmd_executor.apps.deepmd),
                                         python_app=not_none(deepmd_executor.apps.python),
 
+                                        label_app=runtime_ctx.label_app,
+                                        label_dir_url=runtime_ctx.label_url,
+
                                         init_dataset_url='s3://./init-dataset',
                                         iter_dataset_url='s3://./iter-dataset',
                                         work_dir_url=runtime_ctx.train_url,
+                                        iter_str=iter_str,
                                         type_map=type_map)
 
         else:
@@ -90,6 +101,8 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
         if lammps_cfg:
             step_name = f'explore-lammps-iter-{iter_str}'
             runtime_ctx.explore_url = f's3://./explore-lammps/iter/{iter_str}'
+            runtime_ctx.explore_app = 'lammps'
+
             lammps_executor = not_none(config.executors[not_none(config.orchestration.lammps)])
 
             if not step_switch.shall_skip(step_name):

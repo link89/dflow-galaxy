@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from itertools import groupby
 from pathlib import Path
 import glob
@@ -39,19 +39,19 @@ class DeepmdConfig(BaseModel):
 
 
 @dataclass(frozen=True)
-class UpdateNewTrainingDatasetArgs:
+class UpdateDatasetArgs:
     label_dir: types.InputArtifact
     iter_dataset_dir: types.OutputArtifact
 
 
-class UpdateNewTrainingDatasetStep:
-    def __init__(self, config: DeepmdConfig, iter_str: str, label_app: LabelApp, type_map: List[str]):
+class UpdateDatasetFn:
+    def __init__(self, config: DeepmdConfig, iter_str: str, label_app: Optional[LabelApp], type_map: List[str]):
         self.config = config
         self.iter_str = iter_str
         self.label_app = label_app
         self.type_map = type_map
 
-    def __call__(self, args: UpdateNewTrainingDatasetArgs):
+    def __call__(self, args: UpdateDatasetArgs):
         dp_sys_list:List[Tuple[str, dpdata.LabeledSystem]] = []
 
         # parse label data
@@ -197,10 +197,28 @@ def provision_deepmd(builder: DFlowBuilder, ns: str, /,
                      deepmd_app: DeepmdApp,
                      python_app: PythonApp,
                      work_dir_url: str,
+
+                     label_app: Optional[LabelApp],
+                     label_dir_url: Optional[str],
+
                      init_dataset_url: str,
                      iter_dataset_url: str,
+                     iter_str: str,
                      type_map: List[str],
                      ):
+    if label_app and label_dir_url:
+        update_dataset_fn = UpdateDatasetFn(config, iter_str=iter_str,
+                                                        label_app=label_app, type_map=type_map)
+        update_dataset_step = builder.make_python_step(update_dataset_fn, uid=f'{ns}-update-dataset',
+                                                    setup_script=python_app.setup_script,
+                                                    executor=create_dispatcher(executor, python_app.resource))(
+            UpdateDatasetArgs(
+                label_dir=label_dir_url,
+                iter_dataset_dir=iter_dataset_url,
+            )
+
+        )
+        builder.add_step(update_dataset_step)
 
     setup_tasks_fn = SetupDeepmdTaskFn(config, type_map)
     setup_tasks_step = builder.make_python_step(setup_tasks_fn, uid=f'{ns}-setup-task',
