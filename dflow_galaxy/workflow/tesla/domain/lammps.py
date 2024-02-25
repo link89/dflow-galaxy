@@ -7,7 +7,7 @@ import os
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd, inspect_dir, bash_inspect_dir
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, bash_ln_cmd, inspect_dir, bash_inspect_dir
 from dflow_galaxy.core import types
 
 from ai2_kit.domain.lammps import make_lammps_task_dirs
@@ -153,13 +153,14 @@ class RunLammpsTasksFn:
         c = self.context.concurrency
 
         script = [
+            bash_inspect_dir(args.work_dir),
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
                 'tasks/*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
                 script=[
                     '# run lammps',
                     'pushd $ITEM',
-                    get_ln_cmd(args.model_dir, MODEL_DIR),
+                    bash_ln_cmd(args.model_dir, MODEL_DIR),
                     'mv persist/* . || true  # restore previous state',
                     '',
                     self._build_lammps_cmd(),

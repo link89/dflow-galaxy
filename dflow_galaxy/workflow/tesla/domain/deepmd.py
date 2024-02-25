@@ -8,7 +8,7 @@ from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
-from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, get_ln_cmd
+from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, bash_ln_cmd, bash_inspect_dir, inspect_dir
 from dflow_galaxy.core import types
 
 from dflow import argo_range
@@ -60,7 +60,9 @@ class SetupDeepmdTaskFn:
         # dflow didn't provide a unified file namespace,
         # so we have to link dataset to a fixed path and use relative path to access it
         safe_ln(args.init_dataset, INIT_DATASET_DIR)
+        inspect_dir(INIT_DATASET_DIR)
         safe_ln(args.iter_dataset, ITER_DATASET_DIR)
+        inspect_dir(ITER_DATASET_DIR)
 
         # TODO: handle iter dataset
         train_dataset_dirs = [ f'{INIT_DATASET_DIR}/{ds}' for ds in self.config.init_dataset]
@@ -100,6 +102,7 @@ class RunDeepmdTrainingFn:
         c = self.context.concurrency
 
         script = [
+            bash_inspect_dir(args.work_dir),
             f"pushd {args.work_dir}",
             bash_iter_ls_slice(
                 '*/', opt='-d', n=c, i=args.slice_idx, it_var='ITEM',
@@ -107,8 +110,8 @@ class RunDeepmdTrainingFn:
                     '# dp train',
                     'pushd $ITEM',
                     'mv persist/* . || true  # recover checkpoint',
-                    get_ln_cmd(args.init_dataset, INIT_DATASET_DIR),
-                    get_ln_cmd(args.iter_dataset, ITER_DATASET_DIR),
+                    bash_ln_cmd(args.init_dataset, INIT_DATASET_DIR),
+                    bash_ln_cmd(args.iter_dataset, ITER_DATASET_DIR),
                     '',
                     self._build_dp_train_script(),
                     '',

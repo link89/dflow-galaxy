@@ -17,6 +17,7 @@ from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import PythonApp, create_dispatcher, ExecutorConfig
 from dflow_galaxy.core.dflow import DFlowBuilder
 from dflow_galaxy.core import types
+from dflow_galaxy.core.util import inspect_dir
 
 from ai2_kit.core.util import load_text, dump_text
 
@@ -40,6 +41,7 @@ class RunModelDeviTasksFn:
         self.type_map = type_map
 
     def __call__(self, args: RunModelDeviTasksArgs):
+        inspect_dir(args.explore_dir)
         persis_dir = Path(args.persist_dir)
         persis_dir.mkdir(exist_ok=True)
         data_dirs = sorted(glob.glob(f'{args.explore_dir}/tasks/*/persist'))

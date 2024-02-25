@@ -28,7 +28,7 @@ def ensure_str(s: ListStr):
     return s
 
 
-def get_ln_cmd(from_path: str, to_path: str):
+def bash_ln_cmd(from_path: str, to_path: str):
     """
     The reason to `rm -d` to_path is to workaround the limit of ln.
     `ln` command cannot override existed directory,
@@ -43,7 +43,7 @@ def get_ln_cmd(from_path: str, to_path: str):
 def safe_ln(from_path: str, to_path: str, method=None):
     if method is None:
         method = os.system
-    method(get_ln_cmd(from_path, to_path))
+    method(bash_ln_cmd(from_path, to_path))
 
 
 def select_chunk(in_list: list, n: int, i: int):
