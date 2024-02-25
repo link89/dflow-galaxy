@@ -16,8 +16,8 @@ class TestTesla(unittest.TestCase):
         )
         bash_script = step(deepmd.RunDeepmdTrainingArgs(
             slice_idx='{{item}}',
-            init_dataset='init-dataset',
-            iter_dataset='iter-dataset',
+            init_dataset_dir='init-dataset',
+            iter_dataset_dir='iter-dataset',
             work_dir='task_dir',
             persist_dir='output_dir',
         ))
