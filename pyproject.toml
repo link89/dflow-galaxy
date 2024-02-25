@@ -7,12 +7,14 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pydflow = "^1.8.46"
-fire = "^0.5.0"
-pydantic = "^2.6.1"
+pydflow = "^1.8.51"
 dpdispatcher = "^0.6.4"
+ai2-kit= "0.14.10"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+dgcli = "dflow_galaxy.main:main"
