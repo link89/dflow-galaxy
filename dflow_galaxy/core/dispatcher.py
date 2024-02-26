@@ -7,7 +7,7 @@ import os
 
 class Resource(BaseModel):
     queue: Optional[str] = None
-    container: Optional[str] = None
+    image: Optional[str] = None
     sub_path: str = '.'
 
     nodes: int = 1
@@ -90,6 +90,7 @@ def create_bohrium_dispatcher(config: BohriumConfig, resource: Resource):
     }
     return DispatcherExecutor(
         machine_dict=machine_dict,
+        image=resource.image,
         resources_dict= resource.get_resource_dict(),
     )
 
