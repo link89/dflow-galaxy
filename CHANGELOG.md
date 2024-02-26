@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.1.2
+* tesla: clean update section before apply patch
+
 ## 0.1.1
 * tesla: apply patch to original config
 
