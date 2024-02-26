@@ -208,10 +208,10 @@ def provision_deepmd(builder: DFlowBuilder, ns: str, /,
                      ):
     if label_app and label_dir_url:
         update_dataset_fn = UpdateDatasetFn(config, iter_str=iter_str,
-                                                        label_app=label_app, type_map=type_map)
+                                            label_app=label_app, type_map=type_map)
         update_dataset_step = builder.make_python_step(update_dataset_fn, uid=f'{ns}-update-dataset',
-                                                    setup_script=python_app.setup_script,
-                                                    executor=create_dispatcher(executor, python_app.resource))(
+                                                       setup_script=python_app.setup_script,
+                                                       executor=create_dispatcher(executor, python_app.resource))(
             UpdateDatasetArgs(
                 label_dir=label_dir_url,
                 iter_dataset_dir=iter_dataset_url,

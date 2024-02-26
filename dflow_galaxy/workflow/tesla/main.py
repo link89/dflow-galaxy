@@ -156,7 +156,9 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
         if workflow_cfg.update:
             if iter_num == workflow_cfg.update.until_iter:
                 logger.info('Updating workflow config at iter %d', iter_num)
-                raw_workflow_cfg = merge_dict(deepcopy(raw_workflow_cfg), workflow_cfg.update.patch)
+                # the patch is applied to the original config, not the updated one
+                raw_workflow_cfg = deepcopy(config.workflow)
+                raw_workflow_cfg = merge_dict(raw_workflow_cfg, workflow_cfg.update.patch)
 
 
     builder.run()
