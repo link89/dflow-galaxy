@@ -24,7 +24,7 @@ class Resource(BaseModel):
 
 class BohriumConfig(BaseModel):
     email: str
-    password: str
+    password: Optional[str]
     project_id: str
 
 
@@ -78,6 +78,10 @@ def create_dispatcher(config: ExecutorConfig, resource: Resource):
 
 def create_bohrium_dispatcher(config: BohriumConfig, resource: Resource):
     from dflow.plugins.dispatcher import DispatcherExecutor
+    password = os.environ.get('BOHRIUM_PASSWORD') or config.password
+    if not password:
+        raise ValueError('Bohrium password not found in environment variable BOHRIUM_PASSWORD or the configuration file')
+
     remote_profile = {
         'email': config.email,
         'password': config.password,
