@@ -77,7 +77,7 @@ class SetupCp2kTaskFn:
                 }
                 system_files.append(a_dict)  # type: ignore
 
-        assert limit > 0, 'limit should be greater than 0'
+        assert system_files, 'no system files found'
 
         task_dirs = make_cp2k_task_dirs(
             system_files=system_files,
