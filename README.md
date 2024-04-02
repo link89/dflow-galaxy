@@ -26,5 +26,19 @@ poetry install
 poetry shell
 ```
 
+## Bohrium Launch App
+This repository also contains some launch apps for Bohrium. The entry of the Bohrium launch app is in the `launch_app` directory, and relative modules are in the `dflow_galaxy/app` directory.
+
+To build docker image for the launch app, you can use the following command:
+
+```bash
+./build-docker.sh
+```
+### Launch Apps
+* CP2K Lightning: Run CP2K without building input files from scratch.
+* DynaCat TESLA: An automated workflow to generated DeepMD potential for DynaCat. (TODO)
+* DynaCat MD: Run MD simulations with DeepMD potential for DynaCat. (TODO)
+
+
 ## Manuals
 * [TESLA Workflow](doc/tesla.md)

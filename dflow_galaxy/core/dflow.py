@@ -375,7 +375,31 @@ class DFlowBuilder:
         self._debug = debug
 
     def s3_prefix(self, key: str):
-        return os.path.join(self.s3_base_prefix, key).strip('/ ')
+        """
+        get the full s3 prefix of a key.
+        """
+        base_prefix = self.s3_base_prefix
+        # context prefix is inject by bohrium platform
+        # to isolate namespace of different job
+        context_prefix = dflow.s3_config.get('prefix')
+        if context_prefix and not self._debug:
+            base_prefix = os.path.join(context_prefix, base_prefix).strip('/ ')
+
+        return os.path.join(base_prefix, key).strip('/ ')
+
+    def s3_download(self, key: str, path: str = '.',
+                    recursive: bool = True,
+                    skip_exists: bool = False,
+                    keep_dir: bool = False,
+                    ):
+        """
+        Download file from S3 to local.
+        """
+        if self._debug:
+            return
+        dflow.download_s3(self.s3_prefix(key), path,  # type: ignore
+                          recursive=recursive, skip_exists=skip_exists, keep_dir=keep_dir,
+                          debug_func=self._s3_debug_fn)
 
     def s3_upload(self, path: Union[os.PathLike, str], key: str, cache: bool = False) -> str:
         """
@@ -384,13 +408,14 @@ class DFlowBuilder:
         :param path: The local file path.
         :param keys: The keys of the S3 object.
         """
-        if isinstance(path, str):
-            path = Path(path)
+        if not isinstance(path, str):
+            path = str(path)
 
         prefix = self.s3_prefix(key)
         if cache and prefix in self._s3_cache:
             return self._s3_cache[prefix]
-        self._s3_cache[prefix] = dflow.upload_s3(path, prefix, debug_func=self._s3_debug_fn)
+        # FIXME: the type of dflow.upload_s3 is not correct
+        self._s3_cache[prefix] = dflow.upload_s3(path, prefix, debug_func=self._s3_debug_fn)  # type: ignore
         return self._s3_cache[prefix]
 
     def s3_dump(self, data: Union[bytes, str], key: str) -> str:
@@ -572,7 +597,7 @@ class DFlowBuilder:
             key = parsed.path.lstrip('/')
             assert parsed.netloc in ('', '.')
             if '.' == parsed.netloc:
-                key = os.path.join(self.s3_base_prefix, key)
+                key = self.s3_prefix(key)
             if self._debug:
                 key = os.path.abspath(key)
             return dflow.S3Artifact(key=key)

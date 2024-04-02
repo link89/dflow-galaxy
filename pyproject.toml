@@ -4,12 +4,15 @@ version = "0.1.2"
 description = ""
 authors = ["weihong.xu <xuweihong.cn@gmail.com>"]
 readme = "README.md"
+include = ["dflow_galaxy/res/*"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pydflow = "^1.8.51"
+pydflow = "1.8.60"
 dpdispatcher = "^0.6.4"
-ai2-kit= "0.14.10"
+ai2-kit= "0.15.8"
+dp-launching-sdk = "^0.12.0"
+lbg = "^1.2.24"
 
 
 [tool.poetry.group.dev.dependencies]
