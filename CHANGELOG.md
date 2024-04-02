@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.1.3
+* dflow-builder: support Bohrium platform
+* launch app: implement cp2k lightning
+
 ## 0.1.2
 * tesla: clean update section before apply patch
 
