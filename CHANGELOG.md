@@ -1,4 +1,7 @@
 # Change Log
+## 0.1.4
+* launch app: implement DynaCat MD
+* dflow-builder: support raw artifact and default archive method
 
 ## 0.1.3
 * dflow-builder: support Bohrium platform
