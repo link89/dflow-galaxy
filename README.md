@@ -35,7 +35,7 @@ This repository also contains some launch apps for Bohrium. The entry of the Boh
 Currently, the following launch apps are available:
 
 * CP2K Lightning: Run CP2K without building input files from scratch.
-* DynaCat TESLA: An automated workflow to generated DeepMD potential for DynaCat. (TODO)
+* DynaCat TESLA: An automated workflow to generated DeepMD potential for DynaCat.
 * DynaCat MD: Run MD simulations with DeepMD potential for DynaCat. 
 
 
