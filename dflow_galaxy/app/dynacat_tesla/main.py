@@ -80,6 +80,11 @@ class DeepmdSettings(BaseModel):
         default='dp',
         description="Command to run DeepMD, note that it depends on the docker image you used")
 
+    setup_script: String = Field(
+        default='',
+        format='multi-line',
+        description="Setup script for DeepMD simulation, note that it depends on the docker image you used")
+
 
 class LammpsSetting(BaseModel):
     system_file: InputFilePath = Field(
@@ -136,6 +141,11 @@ class LammpsSetting(BaseModel):
         default='lmp',
         description="Command to run LAMMPS, note that it depends on the docker image you used")
 
+    setup_script: String = Field(
+        default='',
+        format='multi-line',
+        description="Setup script for LAMMPS simulation, note that it depends on the docker image you used")
+
 
 class ModelDeviation(BaseModel):
     lo: Float = Field(
@@ -166,6 +176,15 @@ class Cp2kSettings(BaseModel):
     cmd: String = Field(
         default='mpirun -np 32 cp2k.popt',
         description="Script to run CP2K simulation, note that it depends on the docker image")
+
+    setup_script: String = Field(
+        default = '\n'.join([
+            '# guess cp2k data dir',
+            '[[ -z "${CP2K_DATA_DIR}" ]] && export CP2K_DATA_DIR="$(dirname "$(which cp2k)")/../../data" || true',
+            'source /opt/cp2k-toolchain/install/setup',
+        ]),
+        format='multi-line',
+        description="Setup script for CP2K simulation, note that it depends on the docker image you used")
 
 
 class DynacatTeslaArgs(DFlowOptions):
@@ -281,7 +300,7 @@ def _get_executor_config(args: DynacatTeslaArgs):
                         },
                         'dp_cmd': args.deepmd.cmd,
                         'concurrency': args.deepmd.concurrency,
-
+                        'setup_script': args.deepmd.setup_script,
                     },
                     'lammps': {
                         'resource': {
@@ -289,6 +308,7 @@ def _get_executor_config(args: DynacatTeslaArgs):
                         },
                         'lammps_cmd': args.lammps.cmd,
                         'concurrency': args.lammps.concurrency,
+                        'setup_script': args.lammps.setup_script,
                     },
                     'cp2k': {
                         'resource': {
@@ -296,10 +316,7 @@ def _get_executor_config(args: DynacatTeslaArgs):
                         },
                         'cp2k_cmd': args.cp2k.cmd,
                         'concurrency': args.cp2k.concurrency,
-                        'setup_script': '\n'.join([
-                            # guess cp2k data dir
-                            '[[ -z "${CP2K_DATA_DIR}" ]] && export CP2K_DATA_DIR="$(dirname "$(which cp2k)")/../../data" || true',
-                        ])
+                        'setup_script':  args.cp2k.setup_script,
                     }
                 }
             }
