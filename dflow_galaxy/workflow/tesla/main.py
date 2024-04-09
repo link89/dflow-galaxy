@@ -15,18 +15,23 @@ from .domain.lib import StepSwitch, LabelApp, ExploreApp
 logger = get_logger(__name__)
 
 class RuntimeContext:
-    train_url: Optional[str]
+    train_url: Optional[str] = None
 
-    explore_url: Optional[str]
+    explore_url: Optional[str] = None
     explore_app: ExploreApp
 
-    screen_url: Optional[str]
+    screen_url: Optional[str] = None
 
-    label_url: Optional[str]
-    label_app: LabelApp
+    label_url: Optional[str] = None
+    label_app: Optional[LabelApp] = None
 
 
 def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False, max_iters: int = 1):
+    builder = build_tesla_workflow(*config_files, s3_prefix=s3_prefix, debug=debug, skip=skip, max_iters=max_iters)
+    builder.run()
+
+
+def build_tesla_workflow(*config_files: str, s3_prefix: str, debug: bool = False, skip: bool = False, max_iters: int = 1):
     config_raw = load_yaml_files(*config_files)
     config = TeslaConfig(**config_raw)
     config.init()
@@ -35,6 +40,11 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                            default_archive=None)
     step_switch = StepSwitch(skip)
     runtime_ctx = RuntimeContext()
+
+    # ensure the existence of the placeholder files or else argo will raise 404 error
+    # this can not be tested in debug mode
+    builder.s3_dump('', 'init-dataset/.placeholder')
+    builder.s3_dump('', 'iter-dataset/.placeholder')
 
     raw_workflow_cfg = config.workflow
     for iter_num in range(max_iters):
@@ -47,14 +57,13 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
 
         # Labeling
         cp2k_cfg = workflow_cfg.label.cp2k
-        if cp2k_cfg:
+
+        if cp2k_cfg and (iter_num > 0 or cp2k_cfg.init_systems):
             step_name = f'label-cp2k-iter-{iter_str}'
             runtime_ctx.label_app = 'cp2k'
             runtime_ctx.label_url = f's3://./label-cp2k/iter/{iter_str}'
-
             cp2k_executor = not_none(config.executors[not_none(config.orchestration.cp2k)])
-            if (iter_num > 0 or cp2k_cfg.init_systems) and \
-                    not step_switch.shall_skip(step_name):
+            if not step_switch.shall_skip(step_name):
                 if iter_num == 0:
                     assert cp2k_cfg.init_systems, 'init_systems should not be empty for first iteration'
                     assert runtime_ctx.screen_url is None, f'explore_url should be None for iter 0, actual: {runtime_ctx.screen_url}'
@@ -158,10 +167,12 @@ def run_tesla(*config_files: str, s3_prefix: str, debug: bool = False, skip: boo
                 logger.info('Updating workflow config at iter %d', iter_num)
                 # the patch is applied to the original config, not the updated one
                 raw_workflow_cfg = deepcopy(config.workflow)
-                raw_workflow_cfg['workflow']['update'] = None  # clean the old update config
+                raw_workflow_cfg['update'] = None  # clean the old update config
                 raw_workflow_cfg = merge_dict(raw_workflow_cfg, workflow_cfg.update.patch)
 
-    builder.run()
+    return builder
+
+
 
 
 cmd_entry = CmdGroup({
