@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from dflow_galaxy.core import dflow, types, dispatcher
 import shutil
+import os
 
 
 @dataclass(frozen=True)
@@ -59,4 +60,6 @@ def run_lammps_workflow(input_dir: str,
 
     # download artifacts to out_dir
     dflow_builder.s3_download('lammps_output')
-    shutil.move('lammps_output', f'{out_dir}/lammps_output.tgz')
+    shutil.unpack_archive('lammps_output', out_dir)
+    return os.path.join(out_dir, 'output_dir')
+
