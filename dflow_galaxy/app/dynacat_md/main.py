@@ -75,7 +75,7 @@ class DynaCatMdArgs(DFlowOptions):
         description="Output directory of LAMMPS simulation")
 
     lammps_image: String = Field(
-        default='registry.dp.tech/dptech/dpmd:2.2.8-cuda11.8',
+        default='registry.dp.tech/dptech/dpmd:2.2.8-cuda12.0',
         description="Docker image for running LAMMPS simulation")
 
     lammps_device_model: String = Field(

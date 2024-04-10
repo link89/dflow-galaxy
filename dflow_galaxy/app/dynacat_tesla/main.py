@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 BH_DEEPMD_DEFAULT = {
-    'image_name': 'registry.dp.tech/dptech/dpmd:2.2.8-cuda11.8',
+    'image_name': 'registry.dp.tech/dptech/dpmd:2.2.8-cuda12.0',
     'scass_type': 'c8_m32_1 * NVIDIA V100',
 }
 BH_LAMMPS_DEFAULT = BH_DEEPMD_DEFAULT
