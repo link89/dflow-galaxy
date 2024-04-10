@@ -60,6 +60,6 @@ def run_lammps_workflow(input_dir: str,
 
     # download artifacts to out_dir
     dflow_builder.s3_download('lammps_output')
-    shutil.unpack_archive('lammps_output', out_dir)
+    shutil.unpack_archive('lammps_output', out_dir, format='gztar')
     return os.path.join(out_dir, 'output_dir')
 
