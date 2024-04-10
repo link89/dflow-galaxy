@@ -42,13 +42,13 @@ DynaCat TESLA 针对动态催化研究的特点预置了一组训练策略，并
 
 `coord_n_cell.inc` 文件会在工作流中自动生成供用户引用。
 
-
 相关数据文件的准备可借助 ai2-kit 命令行工具，详见 [ase tool](https://github.com/chenggroup/ai2-kit/blob/main/doc/manual/ase.md) and [dpdata tool](https://github.com/chenggroup/ai2-kit/blob/main/doc/manual/dpdata.md)
-
 
 
 #### 作业提交
 上述文件准备完毕后，即可到 App 页面根据说明提交作业。
+
+需要注意的是，为了避免用户误启动作业导致机时浪费，默认 `Dry Run` 为被勾选状态，此时只会生成配置文件，不会真正提交作业。如要真正提交作业，请将 `Dry Run` 选项取消勾选。
 
 目前由于平台限制部分输入选项介绍不清晰，使用时请可参考下方的图例。
 
