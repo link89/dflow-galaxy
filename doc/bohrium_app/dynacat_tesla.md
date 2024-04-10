@@ -54,5 +54,4 @@ DynaCat TESLA 针对动态催化研究的特点预置了一组训练策略，并
 
 ![](img/dynacat_tesla_form_1.png)
 ![](img/dynacat_tesla_form_2.png)
-![](img/dynacat_tesla_form_3.png)
 
