@@ -180,7 +180,7 @@ class Cp2kSettings(BaseModel):
     setup_script: String = Field(
         default = '\n'.join([
             '# guess cp2k data dir',
-            '[[ -z "${CP2K_DATA_DIR}" ]] && export CP2K_DATA_DIR="$(dirname "$(which cp2k)")/../../data" || true',
+            '[[ -z "${CP2K_DATA_DIR}" ]] && export CP2K_DATA_DIR="$(dirname "$(which cp2k || which cp2k.psmp)")/../../data" || true',
             'source /opt/cp2k-toolchain/install/setup',
         ]),
         format='multi-line',

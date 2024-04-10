@@ -19,7 +19,7 @@ class RunCp2kFn:
         """
         script = [
             # guess cp2k data dir
-            '[[ -z "${CP2K_DATA_DIR}" ]] && export CP2K_DATA_DIR="$(dirname "$(which cp2k)")/../../data" || true',
+            '[[ -z "${CP2K_DATA_DIR}" ]] && export CP2K_DATA_DIR="$(dirname "$(which cp2k || which cp2k.psmp)")/../../data" || true',
             f'cd {args.input_dir}',
             self.cp2k_script,
             f'mkdir -p {args.output_dir}',
