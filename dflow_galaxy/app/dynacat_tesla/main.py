@@ -333,6 +333,7 @@ def _get_executor_config(args: DynacatTeslaArgs):
 def _get_workflow_config(args: DynacatTeslaArgs, dp_dataset_config: dict):
     # process system file
     explore_data_file = args.lammps.system_file.get_full_path()
+    explore_data_key = os.path.basename(explore_data_file)
     atoms = ase.io.read(explore_data_file, index=0)
     type_map, mass_map = ai2cat.get_type_map(atoms)  # type: ignore
 
@@ -343,7 +344,7 @@ def _get_workflow_config(args: DynacatTeslaArgs, dp_dataset_config: dict):
     return {
         'datasets': {
             **dp_dataset_config,
-            'explore-data': {
+            explore_data_key: {  # data key must be a normal file name or else ase cannot detect the format
                 'url': explore_data_file,
             },
         },
@@ -361,7 +362,7 @@ def _get_workflow_config(args: DynacatTeslaArgs, dp_dataset_config: dict):
             },
             'explore':{
                 'lammps': {
-                    'systems': ['explore-data'],
+                    'systems': [explore_data_key],
                     'nsteps': args.lammps.nsteps,
                     'ensemble': args.lammps.ensemble.value,
                     'timestep': args.lammps.timestep,
