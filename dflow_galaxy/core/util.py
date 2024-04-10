@@ -173,7 +173,7 @@ def resolve_ln(path: str, mv=False):
         for root, dirs, files in os.walk(path):
             for file in files:
                 file_path = os.path.join(root, file)
-                resolve_ln(file_path)
+                resolve_ln(file_path, mv=mv)
             for dir in dirs:
                 dir_path = os.path.join(root, dir)
-                resolve_ln(dir_path)
+                resolve_ln(dir_path, mv=mv)
