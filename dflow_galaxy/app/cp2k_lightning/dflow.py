@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from dflow_galaxy.core import dflow, types, dispatcher
 import shutil
+import os
 
 
 @dataclass(frozen=True)
@@ -64,4 +65,5 @@ def run_cp2k_workflow(input_dir: str,
 
     # download artifacts to out_dir
     dflow_builder.s3_download('cp2k_output')
-    shutil.move('cp2k_output', f'{out_dir}/cp2k_output.tgz')
+    shutil.unpack_archive('cp2k_output', out_dir, format='gztar')
+    return os.path.join(out_dir, 'output_dir')
