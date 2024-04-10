@@ -47,6 +47,7 @@ def run_cp2k_workflow(input_dir: str,
             image_name=cp2k_image,
             scass_type=cp2k_device_model,
             disk_size=100,
+            job_name='cp2k_lightning',
         )
     )
 

@@ -42,6 +42,7 @@ def run_lammps_workflow(input_dir: str,
             image_name=lammps_image,
             scass_type=lammps_device_model,
             disk_size=100,
+            job_name='dynacat_md',
         )
     )
 

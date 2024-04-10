@@ -291,12 +291,12 @@ def _get_executor_config(args: DynacatTeslaArgs):
                 'apps': {
                     'python': {
                         'resource': {
-                            'bohrium': args.python_resource,
+                            'bohrium': {**args.python_resource, 'job_name':'dynacat_tesla_python'},
                         }
                     },
                     'deepmd': {
                         'resource': {
-                            'bohrium': args.deepmd_resource,
+                            'bohrium': {**args.deepmd_resource, 'job_name':'dynacat_tesla_deepmd'},
                         },
                         'dp_cmd': args.deepmd.cmd,
                         'concurrency': args.deepmd.concurrency,
@@ -304,7 +304,7 @@ def _get_executor_config(args: DynacatTeslaArgs):
                     },
                     'lammps': {
                         'resource': {
-                            'bohrium': args.lammps_resource,
+                            'bohrium': {**args.lammps_resource, 'job_name':'dynacat_tesla_lammps'},
                         },
                         'lammps_cmd': args.lammps.cmd,
                         'concurrency': args.lammps.concurrency,
@@ -312,7 +312,7 @@ def _get_executor_config(args: DynacatTeslaArgs):
                     },
                     'cp2k': {
                         'resource': {
-                            'bohrium': args.cp2k_resource,
+                            'bohrium': {**args.cp2k_resource, 'job_name': 'dynacat_tesla_cp2k'},
                         },
                         'cp2k_cmd': args.cp2k.cmd,
                         'concurrency': args.cp2k.concurrency,
