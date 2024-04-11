@@ -14,6 +14,7 @@ import sys
 import os
 
 from .dflow import run_lammps_workflow
+from .report import gen_report
 
 logger = get_logger(__name__)
 
@@ -25,7 +26,7 @@ class DynaCatMdArgs(DFlowOptions):
         description="Generate configuration file without running the simulation")
 
     system_file: InputFilePath = Field(
-        description="A system file as the initial structure of LAMMPS simulation")
+        description="A system file as the initial structure of LAMMPS simulation, can be xyz, cif, POSCAR, etc.")
 
     # TODO: support multiple deepmd models
     deepmd_model: InputFilePath = Field(
@@ -87,6 +88,8 @@ class DynaCatMdArgs(DFlowOptions):
             '# LAMMPS input can be referenced as lammps.inp',
             '# Note that different container may have different setup',
             'lmp -in lammps.inp &> lammps.out',
+            '# Run plumed to calculate free energy surface',
+            'plumed sum_hills --hills HILLS --mintozero --outfile fes.dat'
         ]),
         format='multi-line',
         description="Script to run LAMMPS simulation, note that it depends on the docker image")
@@ -96,6 +99,9 @@ def launch_app(args: DynaCatMdArgs) -> int:
     config_builder = ai2cat.ConfigBuilder()
 
     shutil.copy(args.deepmd_model, 'dp-model.pb')
+    if not args.plumed_config:
+        raise ValueError('plumed_config is required for metadynamics simulation')
+
     dump_text(args.plumed_config, 'plumed.inp')
 
     logger.info(f'type of system_file: {type(args.system_file)}')
@@ -125,9 +131,11 @@ def launch_app(args: DynaCatMdArgs) -> int:
         lammps_script=str(args.lammps_script),
     )
 
-    # TODO: generate report from data in lammps_output_dir
-
-
+    try:
+        gen_report(lammps_output_dir=lammps_output_dir,
+                   output_dir=str(args.output_dir))
+    except:
+        logger.exception('Failed to generate report')
     return 0
 
 

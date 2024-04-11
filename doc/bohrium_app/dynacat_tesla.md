@@ -50,8 +50,18 @@ DynaCat TESLA 针对动态催化研究的特点预置了一组训练策略，并
 
 需要注意的是，为了避免用户误启动作业导致机时浪费，默认 `Dry Run` 为被勾选状态，此时只会生成配置文件，不会真正提交作业。如要真正提交作业，请将 `Dry Run` 选项取消勾选。
 
-目前由于平台限制部分输入选项介绍不清晰，使用时请可参考下方的图例。
 
-![](img/dynacat_tesla_form_1.png)
-![](img/dynacat_tesla_form_2.png)
+#### 结果查看
+作业执行完毕后，会在输出目录生成一份报告并提供相应的数据下载。
 
+报告提供了训练过程的可视化结果，包括势函数的误差曲线, 用于评估每个迭代的训练效果
+
+![report-train](img/dynacat-tesla-report-train.png)
+
+以及使用此势函数进行结构搜索得到的结构质量评估
+![report-md](img/dynacat-tesla-report-md.png)
+
+如要下载模型，可以进入到指定迭代的目录下下载指定势函数模型：
+![output](img/dynacat-tesla-output.png)
+
+各迭代生成的标注数据位于 `dp-dataset` 目录，用户可下载保存，可用作未来训练的启动数据集。

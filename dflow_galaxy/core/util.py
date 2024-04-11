@@ -177,3 +177,18 @@ def resolve_ln(path: str, mv=False):
             for dir in dirs:
                 dir_path = os.path.join(root, dir)
                 resolve_ln(dir_path, mv=mv)
+
+
+def parse_string_array(s: str, dtype=None, delimiter=None):
+    arr = [x.strip() for x in s.split(delimiter)]
+    if dtype:
+        arr = [dtype(x) for x in arr]
+    return arr
+
+def str_or_none(s):
+    """
+    return None if s is empty string
+    """
+    if not s:
+        return None
+    return s

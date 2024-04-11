@@ -1,10 +1,12 @@
 from dp.launching.typing import BaseModel, Field, OutputDirectory, InputFilePath
 from dp.launching.typing import Int, String, Enum, Float, Boolean, List, Optional, Dict
 from dp.launching.cli import to_runner, default_minimal_exception_handler
+from dp.launching.report import Report, ReportSection, ChartReportElement
 
 from dflow_galaxy.app.common import DFlowOptions, setup_dflow_context, EnsembleOptions
 from dflow_galaxy.res import get_res_path
 from dflow_galaxy.core.log import get_logger
+from dflow_galaxy.core.util import parse_string_array, str_or_none
 
 from dflow_galaxy.workflow.tesla.main import build_tesla_workflow
 
@@ -12,6 +14,7 @@ from ai2_kit.core.util import dump_json, load_text, load_json
 from ai2_kit.feat import catalysis as ai2cat
 
 import ase.io
+import fire
 
 from pathlib import Path
 from uuid import uuid4
@@ -20,6 +23,7 @@ import glob
 import sys
 import os
 
+from .report import gen_report
 
 logger = get_logger(__name__)
 
@@ -178,17 +182,17 @@ class Cp2kSettings(BaseModel):
 class DynacatTeslaArgs(DFlowOptions):
     deepmd_dataset : InputFilePath = Field(
         title='DeepMD Dataset',
-        description="DeepMD in zip or tgz format")
+        description="DeepMD in zip or tgz format, for example: deepmd-dataset.tgz")
 
     deepmd_input_template: InputFilePath = Field(
         title='DeepMD Input Template',
-        description="Input template file for DeepMD training")
+        description="Input template file for DeepMD training, in json format, for example: deepmd.json")
 
     lammps_system_file: InputFilePath = Field(
-        description="Structure file in xyz format use for LAMMPS simulation")
+        description="Structure file in xyz format use for LAMMPS simulation, for example h2o.xyz")
 
     cp2k_input_template: InputFilePath = Field(
-        description="Input template file for CP2K simulation")
+        description="Input template file for CP2K simulation, for example: cp2k.inp")
 
     dry_run: Boolean = Field(
         default = True,
@@ -277,10 +281,20 @@ def launch_app(args: DynacatTeslaArgs) -> int:
         # reclaim useful data
         dp_dataset_dir = os.path.join(args.output_dir, 'dp-dataset')
         dp_models_dir = os.path.join(args.output_dir, 'dp-models')
+        model_devi_dir = os.path.join(args.output_dir, 'model-devi')
         os.makedirs(dp_dataset_dir, exist_ok=True)
         os.makedirs(dp_models_dir, exist_ok=True)
+        os.makedirs(model_devi_dir, exist_ok=True)
         workflow.s3_download('iter-dataset', dp_dataset_dir)
         workflow.s3_download('train-deepmd', dp_models_dir)
+        workflow.s3_download('screen-model-devi', model_devi_dir)
+        try:
+            gen_report(dp_models_dir=dp_models_dir,
+                    model_devi_dir=model_devi_dir,
+                    max_iters=args.max_iters,
+                    output_dir=str(args.output_dir))
+        except:
+            logger.exception('Failed to generate report')
     return 0
 
 
@@ -369,7 +383,7 @@ def _get_workflow_config(args: DynacatTeslaArgs, dp_dataset_config: dict):
                     'timestep': args.lammps.timestep,
                     'sample_freq': args.lammps.sample_freq,
                     'no_pbc': args.lammps.no_pbc,
-                    'plumed_config': args.lammps.plumed_config or None,
+                    'plumed_config': str_or_none(args.lammps.plumed_config),
                     'product_vars': product_vars,
                     'broadcast_vars': broadcast_vars,
                     'template_vars': dict((item.key, item.value) for item in args.lammps.template_vars),
@@ -396,14 +410,10 @@ def _get_lammps_vars(explore_vars: List[ExploreItem]):
     product_vars = {}
     for item in explore_vars:
         if item.broadcast:
-            broadcast_vars[item.key] = _parse_string_array(item.value, dtype=float)
+            broadcast_vars[item.key] = parse_string_array(item.value, dtype=float, delimiter=',')
         else:
-            product_vars[item.key] = _parse_string_array(item.value, dtype=float)
+            product_vars[item.key] = parse_string_array(item.value, dtype=float, delimiter=',')
     return product_vars, broadcast_vars
-
-
-def _parse_string_array(s: str, dtype=float, delimiter=','):
-    return [dtype(x) for x in s.split(delimiter)]
 
 
 def _unpack_dpdata(file: str, extract_dir: str):
@@ -424,4 +434,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    fire.Fire({
+        'main': main,
+        'gen_report': gen_report,
+    })
