@@ -31,4 +31,12 @@ TESLA Lightning基于AI4EC联合实验室开发的催化领域全自动基元反
 
 #### 使用指南
 
-上传需要的结构信息文件，正确配置参数即可提交。
+作业完成后，用户可以在输出目录获取输出文件。
+
+![output](img/cp2k-lightning-output.png)
+
+其中
+* `output_dir` 为 CP2K 的原始输出文件。
+* `dp-dataset` 为转化后的 `deepmd/npy` 格式文件，下载后可做为 DeepMD 训练的启动数据集。
+* `aimd.xyz` 为转化后的 `extxyz` 格式的轨迹，下载后可用做结构搜索的初始结构。
+* `cp2k.dft.inp` 为 CP2K DFT 输入模板，可用于 TESLA 工作流的 CP2K 输入。
