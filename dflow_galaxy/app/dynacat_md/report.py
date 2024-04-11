@@ -48,7 +48,7 @@ def _gen_fes_echart(f: str):
             'data': header[1:],
         },
         'xAxis': {
-            'type': 'category',
+            'type': 'category',  # FIXME: should use value type
             'name': header[0],
             'data': [row[0] for row in rows],
         },
