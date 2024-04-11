@@ -1,4 +1,6 @@
 # Change Log
+## 0.1.6
+* bohrium app: add report and some bug fix
 
 ## 0.1.5
 * launch app: implement DynaCat TESLA
