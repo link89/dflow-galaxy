@@ -43,6 +43,9 @@ Dynacat MD基于AI4EC联合实验室开发的催化领域全自动基元反应�
 
 作业执行完毕后，会在输出目录生成一份报告并提供相应的数据下载。
 
+![output](img/dynacat-md-output.png)
+
+
 其中报告提供了如图的 FES 可视化结果
 ![report-fes](img/dynacat-md-report-fes.png)
 
