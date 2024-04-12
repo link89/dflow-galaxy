@@ -8,10 +8,19 @@
 Collection of workflows and tools built on top of DFlow and [ai2-kit](https://github.com/chenggroup/ai2-kit).
 
 ## Features
-* DFlowBuilder: A type friendly wrapper for `DFlow` to build workflows in a more intuitive way.
-* Workflows:
-  * TESLA: a **T**raining-**E**xploration-**S**creening-**L**abeling workflow designed by **AI4EC**. Get inspired by [DPGEN](https://github.com/deepmodeling/dpgen), [DPGEN2](https://github.com/deepmodeling/dpgen2), ported from [ai2-kit](https://github.com/chenggroup/ai2-kit).
 
+### Tools
+* DFlowBuilder: A type friendly wrapper for `DFlow` to build workflows in a more intuitive way.
+
+### Workflow
+* TESLA: a **T**raining-**E**xploration-**S**creening-**L**abeling workflow developed by **AI4EC**. Get inspired by [DPGEN](https://github.com/deepmodeling/dpgen), [DPGEN2](https://github.com/deepmodeling/dpgen2), ported from [ai2-kit](https://github.com/chenggroup/ai2-kit).
+
+### [Bohrium Apps](https://bohrium.dp.tech/apps)
+Bohrium Apps are cloud native apps that can be run on Bohrium Platform. 
+
+* CP2K Lightning: Run CP2K without building input files from scratch.
+* DynaCat TESLA: An automated workflow to generated DeepMD potential for DynaCat.
+* DynaCat MD: Run MD simulations with DeepMD potential for DynaCat. 
 
 ## Get Started
 `dflow-galaxy` requires Python 3.9+ since it depends on `typing.Annotated`.
@@ -29,14 +38,11 @@ poetry install
 poetry shell
 ```
 
-## Bohrium Launch App
-This repository also contains some launch apps for Bohrium. The entry of the Bohrium launch app is in the `launch_app` directory, and relative modules are in the `dflow_galaxy/app` directory.
+## Bohrium App
+The entry of the Bohrium App are in the [launch_app](./launch_app/) directory, and the actual implementation are in the [dflow_galaxy/app](./dflow_galaxy/app/) directory.
 
-Currently, the following launch apps are available:
+Document for Bohrium App development can be found [here](https://dptechnology.feishu.cn/docx/JPqgdmN1woxO8jxRtMycqWPQnIg)
 
-* CP2K Lightning: Run CP2K without building input files from scratch.
-* DynaCat TESLA: An automated workflow to generated DeepMD potential for DynaCat.
-* DynaCat MD: Run MD simulations with DeepMD potential for DynaCat. 
 
 
 ## Distribution
