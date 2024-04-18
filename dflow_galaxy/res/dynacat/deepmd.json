@@ -3,8 +3,8 @@
         "descriptor": {
             "type": "se_a",
             "sel": "auto",
-            "rcut_smth": 2.0,
-            "rcut": 15.0,
+            "rcut_smth": 0.5,
+            "rcut": 6.0,
             "neuron": [
                 25,
                 50,
@@ -38,6 +38,7 @@
     "training": {
         "disp_file": "lcurve.out",
         "disp_freq": 1000,
+        "numb_steps": 400000,
         "numb_test": 1,
         "save_freq": 1000,
         "save_ckpt": "model.ckpt",
