@@ -106,6 +106,7 @@ class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
 
     basis_set: Set[BasicSetOptions] = Field(
         default=[BasicSetOptions.BASIS_MOLOPT],
+        min_items=1,
         description='Select the basis set for the simulation')
 
     potential: PotentialOptions = Field(
@@ -140,6 +141,7 @@ class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
 def launch_app(args: Cp2kLightningArgs) -> int:
     # stage 1: generate cp2k input file
     basis_set_files = [v.value for v in args.basis_set]
+    assert len(basis_set_files) > 0, 'basis_set must be set'
     potential_file = args.potential.value
     for f in basis_set_files + [potential_file]:
         f = get_cp2k_data_file(f)
