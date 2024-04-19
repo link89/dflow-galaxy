@@ -1,4 +1,9 @@
 # Change Log
+## 0.1.7
+* add jupyterlab to docker image
+* upgrade ai2-kit to 0.16.0
+* support default deepmd input template for dynacat tesla
+
 ## 0.1.6
 * bohrium app: add report and some bug fix
 
