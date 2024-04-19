@@ -366,6 +366,7 @@ def _get_workflow_config(args: DynacatTeslaArgs, dp_dataset_config: dict):
     if args.deepmd.steps and args.deepmd.steps > 0:
         deepmd_template['training']['numb_steps'] = args.deepmd.steps
     assert deepmd_template['training']['numb_steps'] > 0, 'numb_steps is required in the input template or input'
+    deepmd_template['training']['disp_file'] = 'lcurve.out'  # force to use lcurve.out
 
     product_vars, broadcast_vars = _get_lammps_vars(args.lammps.explore_vars)
 
