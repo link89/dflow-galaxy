@@ -1,5 +1,5 @@
 from dp.launching.typing import BaseModel, Field, OutputDirectory, InputFilePath, Optional
-from dp.launching.typing import Int, String, Enum, Float, Boolean
+from dp.launching.typing import Int, String, Enum, Float, Boolean, Set
 from dp.launching.cli import to_runner, default_minimal_exception_handler
 
 from dflow_galaxy.app.common import DFlowOptionsMixin, setup_dflow_context
@@ -104,8 +104,8 @@ class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
         default=0.5,
         description="Time step of the simulation in fs")
 
-    basis_set: BasicSetOptions = Field(
-        default=BasicSetOptions.BASIS_MOLOPT,
+    basis_set: Set[BasicSetOptions] = Field(
+        default=[BasicSetOptions.BASIS_MOLOPT],
         description='Select the basis set for the simulation')
 
     potential: PotentialOptions = Field(
@@ -139,12 +139,14 @@ class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
 
 def launch_app(args: Cp2kLightningArgs) -> int:
     # stage 1: generate cp2k input file
-    basis_set_file = get_cp2k_data_file(args.basis_set.value)
-    potential_file = get_cp2k_data_file(args.potential.value)
-    # copy data file to cwd
-    # don't use absolute path as the config file will be use in docker
-    shutil.copy(basis_set_file, '.')
-    shutil.copy(potential_file, '.')
+    basis_set_files = [v.value for v in args.basis_set]
+    potential_file = args.potential.value
+    for f in basis_set_files + [potential_file]:
+        f = get_cp2k_data_file(f)
+        # copy data file to cwd
+        # don't use absolute path as the config file will be use in docker
+        shutil.copy(f, '.')
+
     system_file = args.system_file.get_full_path()
 
     # create a closure to generate cp2k input file
@@ -158,8 +160,8 @@ def launch_app(args: Cp2kLightningArgs) -> int:
             temp=args.temperature,
             steps=args.steps,
             timestep=args.timestep,
-            basic_set_file=args.basis_set.value,
-            potential_file=args.potential.value,
+            basis_set_file=basis_set_files,
+            potential_file=potential_file,
             parameter_file='dftd3.dat',
         )
     _gen_cp2k_input('aimd', aimd=True)
