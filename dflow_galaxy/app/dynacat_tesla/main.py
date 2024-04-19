@@ -40,7 +40,7 @@ BH_CP2K_DEFAULT = {
 }
 
 BH_PYTHON_DEFAULT = {
-    'image_name': 'registry.dp.tech/dptech/prod-13325/dflow-galaxy:0.1.4-main-8bb98c7',
+    'image_name': 'registry.dp.tech/dptech/prod-13325/dflow-galaxy:0.1.7-main-07745fb',
     'scass_type': 'c2_m4_cpu',
 }
 
