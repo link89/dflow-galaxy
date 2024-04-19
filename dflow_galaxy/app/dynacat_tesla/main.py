@@ -73,6 +73,10 @@ class DeepmdSettings(BaseModel):
         default=4,
         description="Number of concurrent run")
 
+    steps: Optional[Int] = Field(
+        default=400000,
+        description="Number of steps for DeepMD training, leave it empty will use the numb_steps defined in the input template")
+
     cmd: String = Field(
         default='dp',
         description="Command to run DeepMD, note that it depends on the docker image you used")
@@ -184,19 +188,19 @@ class DynacatTeslaArgs(BaseModel, DFlowOptionsMixin):
         title='DeepMD Dataset',
         description="DeepMD in zip or tgz format, for example: deepmd-dataset.tgz")
 
-    deepmd_input_template: InputFilePath = Field(
+    deepmd_input_template: Optional[InputFilePath] = Field(
         title='DeepMD Input Template',
-        description="Input template file for DeepMD training, in json format, for example: deepmd.json")
+        description="Input template file for DeepMD training, in json format, for example: deepmd.json, if not provided, the build-in template will be used")
 
     lammps_system_file: InputFilePath = Field(
-        description="Structure file in xyz format use for LAMMPS simulation, for example h2o.xyz")
+        description="Structure file in xyz format use for LAMMPS simulation, for example h2o.xyz, the xyz file may contain multiple structures")
 
     cp2k_input_template: InputFilePath = Field(
         description="Input template file for CP2K simulation, for example: cp2k.inp")
 
     dry_run: Boolean = Field(
         default = True,
-        description="Generate configuration file without running the simulation")
+        description="Generate configuration file without running the workflow")
 
     max_iters: Int = Field(
         default = 7,
@@ -352,8 +356,17 @@ def _get_workflow_config(args: DynacatTeslaArgs, dp_dataset_config: dict):
     atoms = ase.io.read(explore_data_file, index=0)
     type_map, mass_map = ai2cat.get_type_map(atoms)  # type: ignore
 
+    if args.deepmd_input_template:
+        deepmd_template_file = args.deepmd_input_template.get_full_path()
+    else:
+        deepmd_template_file = str(get_res_path() / 'dynacat' / 'deepmd.json')
+    deepmd_template = load_json(deepmd_template_file)
     cp2k_input_template = load_text(args.cp2k_input_template.get_full_path())
-    deepmd_template = load_json(args.deepmd_input_template.get_full_path())
+
+    if args.deepmd.steps and args.deepmd.steps > 0:
+        deepmd_template['training']['numb_steps'] = args.deepmd.steps
+    assert deepmd_template['training']['numb_steps'] > 0, 'numb_steps is required in the input template or input'
+
     product_vars, broadcast_vars = _get_lammps_vars(args.lammps.explore_vars)
 
     return {
