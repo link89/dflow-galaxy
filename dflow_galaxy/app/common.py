@@ -14,7 +14,7 @@ from dflow_galaxy.core.log import get_logger
 logger = get_logger(__name__)
 
 
-class DFlowOptions(BaseModel):
+class DFlowOptionsMixin:
     bh_username: Optional[BohriumUsername]
     bh_ticket: Optional[BohriumTicket]
     bh_project_id: Optional[BohriumProjectId]
@@ -27,7 +27,7 @@ class DFlowOptions(BaseModel):
     dflow_storage_repository: Optional[DflowStorageRepository]
 
 
-def setup_dflow_context(opts: DFlowOptions):
+def setup_dflow_context(opts: DFlowOptionsMixin):
     """
     setup dflow context based on:
     https://dptechnology.feishu.cn/docx/HYjmdDj36oAksixbviKcbgUinUf

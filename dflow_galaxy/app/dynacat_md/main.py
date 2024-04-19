@@ -2,7 +2,7 @@ from dp.launching.typing import BaseModel, Field, OutputDirectory, InputFilePath
 from dp.launching.typing import Int, String, Enum, Float, Boolean
 from dp.launching.cli import to_runner, default_minimal_exception_handler
 
-from dflow_galaxy.app.common import DFlowOptions, setup_dflow_context, EnsembleOptions
+from dflow_galaxy.app.common import DFlowOptionsMixin, setup_dflow_context, EnsembleOptions
 from dflow_galaxy.core.log import get_logger
 from ai2_kit.feat import catalysis as ai2cat
 from ai2_kit.core.util import dump_text, dump_json
@@ -19,7 +19,7 @@ from .report import gen_report
 logger = get_logger(__name__)
 
 
-class DynaCatMdArgs(DFlowOptions):
+class DynaCatMdArgs(BaseModel, DFlowOptionsMixin):
 
     dry_run: Boolean = Field(
         default = True,
