@@ -13,7 +13,7 @@ Collection of workflows and tools built on top of DFlow and [ai2-kit](https://gi
 * DFlowBuilder: A type friendly wrapper for `DFlow` to build workflows in a more intuitive way.
 
 ### Workflow
-* TESLA: a **T**raining-**E**xploration-**S**creening-**L**abeling workflow developed by **AI4EC**. Get inspired by [DPGEN](https://github.com/deepmodeling/dpgen), [DPGEN2](https://github.com/deepmodeling/dpgen2), ported from [ai2-kit](https://github.com/chenggroup/ai2-kit).
+* TESLA: a **T**raining-**E**xploration-**S**creening-**L**abeling workflow developed by **AI4EC**. Get inspired by [DPGEN](https://github.com/deepmodeling/dpgen), [DPGEN2](https://github.com/deepmodeling/dpgen2), powered by [ai2-kit](https://github.com/chenggroup/ai2-kit).
 
 ### [Bohrium Apps](https://bohrium.dp.tech/apps)
 Bohrium Apps are cloud native apps that can be run on Bohrium Platform. 
