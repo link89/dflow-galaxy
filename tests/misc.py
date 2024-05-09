@@ -26,6 +26,36 @@ class TestMisc(unittest.TestCase):
         print(url1, url2)
 
 
+    def test_dataclass_fields(self):
+        from dataclasses import dataclass, fields
+        from dflow_galaxy.core import types
+        from typing import Optional, get_args, get_origin
+
+        @dataclass
+        class Foo:
+            x: types.InputParam[int]
+            y: types.InputArtifact
+            z: Optional[types.InputArtifact]
+
+        for f in fields(Foo):
+            parse_dflow_field(f)
+
+        f = Foo(1, '2', None)
+
+import typing
+
+
+
+
+
+
+
+
+
+    return required
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

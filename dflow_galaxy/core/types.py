@@ -14,6 +14,8 @@ InputArtifact = Annotated[str, Symbol.INPUT_ARTIFACT]
 OutputParam = Annotated[T, Symbol.OUTPUT_PARAMETER]
 OutputArtifact = Annotated[str, Symbol.OUTPUT_ARTIFACT]
 
+CustomArtifact = Annotated[str, T]
+
 
 ListStr = Union[List[str], str]
 
