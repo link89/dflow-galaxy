@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Annotated, Optional
 import unittest
 
 from dflow_galaxy.core import dflow_builder, types
@@ -73,11 +74,15 @@ class TestDdflow(unittest.TestCase):
             list(dflow_builder.iter_python_step_return(Foo(1, 2)))
 
     def test_convert_to_argo_script(self):
+        import dflow
+
         @dataclass(frozen=True)
         class FooInput:
             x: types.InputParam[int]
             y: types.InputArtifact
             z: types.OutputArtifact
+            u: Annotated[str, dflow.InputArtifact()]
+            v: Optional[types.InputArtifact]
 
         @dataclass
         class FooOutput:
@@ -87,6 +92,7 @@ class TestDdflow(unittest.TestCase):
             return FooOutput(input.x)
 
         ret = dflow_builder.python_build_template(foo, base_dir='/tmp/dflow-galaxy')
+        print(ret.source)
 
     def test_argo_script_without_return(self):
         @dataclass(frozen=True)
@@ -101,18 +107,23 @@ class TestDdflow(unittest.TestCase):
         dflow_builder.python_build_template(foo2, base_dir='/tmp/dflow-galaxy')
 
     def test_bash_build_template(self):
+        import dflow
 
         @dataclass(frozen=True)
         class FooArgs:
             x: types.InputParam[int]
             y: types.InputArtifact
             z: types.OutputArtifact
+            u: Annotated[str, dflow.InputArtifact()]
+            v: Optional[types.InputArtifact]
 
         def foo(args: FooArgs) -> str:
             return f'''\
 echo "{args.x}"
 echo "{args.y}"
 echo "{args.z}"
+echo "{args.u}"
+echo "{args.v}"
 '''
         ret = dflow_builder.bash_build_template(foo, base_dir='/tmp/dflow-galaxy')
         print(ret.source)

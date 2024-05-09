@@ -77,7 +77,7 @@ def parse_dflow_field(field):
         args = get_args(_type)
         optional = True
 
-    error_msg = f'Invalid type `{_type}` for field `{name}`, must be one of InputParam, InputArtifact, OutputParam, OutputArtifact, CustomArtifact[dflow.InputArtifact(...)], CustomArtifact[dflow.OutputArtifact(...)]'
+    error_msg = f'Invalid type `{_type}` for field `{name}`, must be one of InputParam, InputArtifact, OutputParam, OutputArtifact, Annotated[str, dflow.InputArtifact(...)], Annotated[str, dflow.OutputArtifact(...)]'
     metadata = getattr(_type, '__metadata__', None)
     if metadata is None or len(metadata) != 1:
         raise ValueError(error_msg)
