@@ -51,10 +51,10 @@ class TestDdflow(unittest.TestCase):
             z: types.OutputArtifact
             e: types.OutputParam[int]
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             list(dflow_builder.iter_python_step_args(Foo(1, '2', '3', 4)))
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             list(dflow_builder.iter_python_step_args(Bar(1, '2', '3', 4)))
 
     def test_valid_python_step_output(self):

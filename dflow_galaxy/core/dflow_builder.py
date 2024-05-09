@@ -62,7 +62,7 @@ class ObjProxy:
 
 
 def parse_dflow_field(field):
-    name, _type = field.name
+    name = field.name
     _type = field.type
 
     args = get_args(_type)
@@ -83,10 +83,10 @@ def parse_dflow_field(field):
         raise ValueError(error_msg)
 
     if metadata[0] not in (
-        types.InputArtifact,
-        types.OutputArtifact,
-        types.InputParam,
-    ) or not isinstance(metadata[0], dflow.InputArtifact) or not isinstance(metadata[0], dflow.OutputArtifact):
+        types.Symbol.INPUT_PARAMETER,
+        types.Symbol.INPUT_ARTIFACT,
+        types.Symbol.OUTPUT_ARTIFACT,
+    ) and not isinstance(metadata[0], dflow.InputArtifact) and not isinstance(metadata[0], dflow.OutputArtifact):
         raise ValueError(error_msg)
 
     return _type, optional

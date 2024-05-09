@@ -27,9 +27,10 @@ class TestMisc(unittest.TestCase):
 
 
     def test_dataclass_fields(self):
+        from typing import Optional
         from dataclasses import dataclass, fields
+        from dflow_galaxy.core.dflow_builder import parse_dflow_field
         from dflow_galaxy.core import types
-        from typing import Optional, get_args, get_origin
 
         @dataclass
         class Foo:
@@ -41,18 +42,6 @@ class TestMisc(unittest.TestCase):
             parse_dflow_field(f)
 
         f = Foo(1, '2', None)
-
-import typing
-
-
-
-
-
-
-
-
-
-    return required
 
 
 
