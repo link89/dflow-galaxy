@@ -78,6 +78,7 @@ class TestDdflow(unittest.TestCase):
             x: types.InputParam[int]
             y: types.InputArtifact
             z: types.OutputArtifact
+
         @dataclass
         class FooOutput:
             x: types.OutputParam[int]

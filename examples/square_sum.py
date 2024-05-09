@@ -90,22 +90,22 @@ def main():
         extra_kwargs['default_executor'] = executor
 
     # build and run workflow
-    dflow_builder = dflow_builder.DFlowBuilder('square-sum', s3_prefix='s3/square-sum',
+    builder = dflow_builder.DFlowBuilder('square-sum', s3_prefix='s3/square-sum',
                                        debug=True, **extra_kwargs)
 
-    fan_out_step = dflow_builder.make_python_step(fan_out)(FanOutArgs(num=10,
+    fan_out_step = builder.make_python_step(fan_out)(FanOutArgs(num=10,
                                                                       output_dir='s3://./fanout'))
-    square_step = dflow_builder.make_python_step(square)(SquareArgs(input_dir=fan_out_step.args.output_dir,
+    square_step = builder.make_python_step(square)(SquareArgs(input_dir=fan_out_step.args.output_dir,
                                                                     output_dir='s3://./square'))
-    fan_in_step = dflow_builder.make_python_step(fan_in)(FanInArgs(input_dir=square_step.args.output_dir,
+    fan_in_step = builder.make_python_step(fan_in)(FanInArgs(input_dir=square_step.args.output_dir,
                                                                    result_file='s3://./result.txt'))
-    show_step = dflow_builder.make_bash_step(show)(ShowArgs(result_file=fan_in_step.args.result_file))
+    show_step = builder.make_bash_step(show)(ShowArgs(result_file=fan_in_step.args.result_file))
 
-    dflow_builder.add_step(fan_out_step)
-    dflow_builder.add_step(square_step)
-    dflow_builder.add_step(fan_in_step)
-    dflow_builder.add_step(show_step)
+    builder.add_step(fan_out_step)
+    builder.add_step(square_step)
+    builder.add_step(fan_in_step)
+    builder.add_step(show_step)
 
-    dflow_builder.run()
+    builder.run()
 
 main()
