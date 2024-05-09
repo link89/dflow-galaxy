@@ -15,7 +15,7 @@ import ase.io
 from dflow_galaxy.core.pydantic import BaseModel
 
 from dflow_galaxy.core.dispatcher import PythonApp, create_dispatcher, ExecutorConfig
-from dflow_galaxy.core.dflow import DFlowBuilder
+from dflow_galaxy.core.dflow_builder import DFlowBuilder
 from dflow_galaxy.core import types
 from dflow_galaxy.core.util import inspect_dir
 

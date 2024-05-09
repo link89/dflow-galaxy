@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
 from dataclasses import dataclass
-from dflow_galaxy.core import dflow, types, dispatcher
+from dflow_galaxy.core import dflow_builder, types, dispatcher
 from dflow_galaxy.core.util import ensure_dirname, ensure_dir
 
 
@@ -90,7 +90,7 @@ def main():
         extra_kwargs['default_executor'] = executor
 
     # build and run workflow
-    dflow_builder = dflow.DFlowBuilder('square-sum', s3_prefix='s3/square-sum',
+    dflow_builder = dflow_builder.DFlowBuilder('square-sum', s3_prefix='s3/square-sum',
                                        debug=True, **extra_kwargs)
 
     fan_out_step = dflow_builder.make_python_step(fan_out)(FanOutArgs(num=10,

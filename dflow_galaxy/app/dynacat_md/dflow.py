@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from dflow_galaxy.core import dflow, types, dispatcher
+from dflow_galaxy.core import dflow_builder, types, dispatcher
 import shutil
 import os
 
@@ -35,7 +35,7 @@ def run_lammps_workflow(input_dir: str,
     bohrium_config = dispatcher.BohriumConfig()
 
     # start to build workflow
-    dflow_builder = dflow.DFlowBuilder('lammps', s3_prefix='lammps')
+    dflow_builder = dflow_builder.DFlowBuilder('lammps', s3_prefix='lammps')
 
     # setup and add lammps step to workflow
     lammps_res = dispatcher.Resource(
