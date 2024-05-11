@@ -37,14 +37,10 @@ class Config(BaseModel):
     """
 
 
-def build_tesla_workflow(config: Config,
-                         s3_prefix: str,
-                         debug: bool = False,
-                         name: str = 'reweighting'):
+def build_reweighing_workflow(config: Config,
+                              s3_prefix: str,
+                              debug: bool = False,
+                              name: str = 'reweighting'):
 
     builder = DFlowBuilder(name=name, s3_prefix=s3_prefix, debug=debug,
                            default_archive=None)
-
-
-
-

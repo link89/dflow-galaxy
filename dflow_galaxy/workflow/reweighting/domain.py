@@ -1,4 +1,3 @@
-o
 from typing import List, Optional, Mapping, Any, Literal
 from dataclasses import dataclass
 from copy import deepcopy
@@ -19,13 +18,20 @@ from ai2_kit.core.util import cmd_with_checkpoint as cmd_cp, list_sample, load_t
 from dflow import argo_range
 
 
-
-
 @dataclass(frozen=True)
-class SetupReweightingTasksArgs:
+class RunReweightingTaskArgs:
     baseline_system_dir: types.InputArtifact
     baseline_colvar_file: types.InputArtifact
     baseline_model_file : Optional[types.InputArtifact]
+    target_model_file: types.InputArtifact
 
-    work_dir: types.OutputArtifact
+    output_dir: types.OutputArtifact
 
+
+class RunReweightingTask:
+
+    def __init__(self):
+        ...
+
+    def __call__(self, args: RunReweightingTaskArgs):
+        ...
