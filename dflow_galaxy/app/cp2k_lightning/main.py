@@ -1,13 +1,13 @@
 from dp.launching.typing import BaseModel, Field, OutputDirectory, InputFilePath, Optional
 from dp.launching.typing import Int, String, Enum, Float, Boolean, Set
-from dp.launching.cli import to_runner, default_minimal_exception_handler
+from dp.launching.cli import to_runner
 
 from dflow_galaxy.app.common import DFlowOptionsMixin, setup_dflow_context
 from dflow_galaxy.res import get_cp2k_data_dir
 from dflow_galaxy.core.log import get_logger
 from ai2_kit.feat import catalysis as ai2cat
-from ai2_kit.tool.ase import AseHelper
-from ai2_kit.tool.dpdata import DpdataHelper
+from ai2_kit.tool.ase import AseTool
+from ai2_kit.tool.dpdata import DpdataTool
 
 from pathlib import Path
 import shutil
@@ -191,13 +191,13 @@ def launch_app(args: Cp2kLightningArgs) -> int:
 
     # stage 3: post-process cp2k output
     # convert cp2k output to xyz file and dpdata set
-    AseHelper().read(
+    AseTool().read(
         os.path.join(cp2k_output_dir, '*-pos-1.xyz')
     ).set_by_ref(
         system_file
     ).write(str(out_dir / 'aimd.xyz' ))
 
-    DpdataHelper().read(
+    DpdataTool().read(
         cp2k_output_dir, fmt='cp2kdata/md', cp2k_output_name='output'
     ).write(str(out_dir / 'dp-dataset'))
 
