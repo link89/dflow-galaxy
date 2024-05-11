@@ -4,7 +4,7 @@ from copy import deepcopy
 from ai2_kit.core.util import load_yaml_files, merge_dict
 from ai2_kit.core.cmd import CmdGroup
 
-from dflow_galaxy.core.dflow import DFlowBuilder
+from dflow_galaxy.core.dflow_builder import DFlowBuilder
 from dflow_galaxy.core.util import not_none
 from dflow_galaxy.core.log import get_logger
 

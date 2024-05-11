@@ -2,7 +2,8 @@ from dflow.op_template import ScriptOPTemplate
 from dflow.plugins.dispatcher import DispatcherExecutor
 import dflow
 
-from typing import Final, Callable, TypeVar, Optional, Union, Annotated, Generic, Dict, Any, Iterable
+from typing import Final, Callable, TypeVar, Optional, Union, Generic, Dict, Any, Iterable, get_args, get_origin
+
 from dataclasses import fields, is_dataclass
 from urllib.parse import urlparse
 from collections import namedtuple
@@ -60,6 +61,37 @@ class ObjProxy:
         raise AttributeError(f'{name} not found in {self.objs}')
 
 
+def parse_dflow_field(field):
+    name = field.name
+    _type = field.type
+
+    args = get_args(_type)
+    origin = get_origin(_type)
+    optional = False
+
+    if origin is Union:
+        if type(None) not in args or len(args) != 2:
+            raise ValueError(f'Invalid Union type `{_type}` for field `{name}`, you may want to use Optional[T]?')
+        _type = args[0]
+        origin = get_origin(_type)
+        args = get_args(_type)
+        optional = True
+
+    error_msg = f'Invalid type `{_type}` for field `{name}`, must be one of InputParam, InputArtifact, OutputParam, OutputArtifact, Annotated[str, dflow.InputArtifact(...)], Annotated[str, dflow.OutputArtifact(...)]'
+    metadata = getattr(_type, '__metadata__', None)
+    if metadata is None or len(metadata) != 1:
+        raise ValueError(error_msg)
+
+    if metadata[0] not in (
+        types.Symbol.INPUT_PARAMETER,
+        types.Symbol.INPUT_ARTIFACT,
+        types.Symbol.OUTPUT_ARTIFACT,
+    ) and not isinstance(metadata[0], dflow.InputArtifact) and not isinstance(metadata[0], dflow.OutputArtifact):
+        raise ValueError(error_msg)
+
+    return _type, optional
+
+
 def pickle_converts(obj, pickle_module='cp', bz2_module='bz2', base64_module='base64'):
     """
     convert an object to its pickle string form
@@ -71,6 +103,8 @@ def pickle_converts(obj, pickle_module='cp', bz2_module='bz2', base64_module='ba
     return f'{pickle_module}.loads({bz2_module}.decompress({base64_module}.b64decode({repr(obj_b64)})))'
 
 
+_ParsedField = namedtuple('_ParseField', ['name', 'type', 'optional', 'value'])
+
 def iter_python_step_args(obj):
     """
     Iterate over the input fields of a python step.
@@ -79,14 +113,10 @@ def iter_python_step_args(obj):
     2. All fields are annotated with InputParam, InputArtifact or OutputArtifact.
     """
     assert is_dataclass(obj), f'{obj} is not a dataclass'
-    assert obj.__dataclass_params__.frozen, f'{obj} is not frozen'
     for f in fields(obj):
-        msg = f'{f.name} is not annotated with InputParam, InputArtifact or OutputArtifact'
-        assert hasattr(f.type, '__metadata__'), msg
-        assert f.type.__metadata__[0] in (
-            types.Symbol.INPUT_PARAMETER, types.Symbol.INPUT_ARTIFACT,
-            types.Symbol.OUTPUT_ARTIFACT), msg
-        yield f, getattr(obj, f.name, None)
+        _type, optional = parse_dflow_field(f)
+        yield _ParsedField(name=f.name, type=_type,
+                           optional=optional, value=getattr(obj, f.name, None))
 
 
 def iter_python_step_return(obj):
@@ -146,7 +176,7 @@ def bash_build_template(py_fn: Callable,
         '# Setup Variables',
     ]
 
-    for f, v in iter_python_step_args(args_type):
+    for f in iter_python_step_args(args_type):
         meta = f.type.__metadata__[0]
         if meta == types.Symbol.INPUT_PARAMETER:
             # input parameter can be a multiline string
@@ -166,7 +196,7 @@ def bash_build_template(py_fn: Callable,
             source.append(f'{bash_name}={shlex.quote(path)}')
             artifact = meta
             if not isinstance(artifact, dflow.InputArtifact):
-                artifact = dflow.InputArtifact(path=path, archive=default_archive)  # type: ignore
+                artifact = dflow.InputArtifact(path=path, archive=default_archive, optional=f.optional)  # type: ignore
             dflow_input_artifacts[f.name] = artifact
             args_dict[f.name] = f'${bash_name}'
 
@@ -176,7 +206,7 @@ def bash_build_template(py_fn: Callable,
             source.append(f'{bash_name}={shlex.quote(path)}')
             artifact = meta
             if not isinstance(artifact, dflow.OutputArtifact):
-                artifact = dflow.OutputArtifact(path=path, archive=default_archive)  # type: ignore
+                artifact = dflow.OutputArtifact(path=path, archive=default_archive, optional=f.optional)  # type: ignore
             dflow_output_artifacts[f.name] = artifact
 
             args_dict[f.name] = f'${bash_name}'
@@ -260,7 +290,7 @@ def python_build_template(py_fn: Callable,
         'args = dict()',
     ]
 
-    for f, v in iter_python_step_args(args_type):
+    for f in iter_python_step_args(args_type):
         meta = f.type.__metadata__[0]
         if meta == types.Symbol.INPUT_PARAMETER:
             # FIXME: may have error in some corner cases
@@ -646,14 +676,14 @@ class DFlowBuilder:
 
         parameters = {}
         artifacts = {}
-        for f, v in iter_python_step_args(args):
+        for f in iter_python_step_args(args):
             meta = f.type.__metadata__[0]
             if meta == types.Symbol.INPUT_PARAMETER:
-                parameters[f.name] = v
+                parameters[f.name] = f.value
             elif meta == types.Symbol.INPUT_ARTIFACT or isinstance(meta, dflow.InputArtifact):
-                artifacts[f.name] = self._ensure_artifact(v)  # type: ignore
+                artifacts[f.name] = self._ensure_artifact(f.value)  # type: ignore
             elif meta == types.Symbol.OUTPUT_ARTIFACT or isinstance(meta, dflow.OutputArtifact):
-                template.outputs.artifacts[f.name].save = [self._ensure_artifact(v)]  # type: ignore
+                template.outputs.artifacts[f.name].save = [self._ensure_artifact(f.value)]  # type: ignore
             else:
                 raise ValueError(f'unsupported type {f.type}')
 

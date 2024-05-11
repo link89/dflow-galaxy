@@ -10,7 +10,7 @@ from ai2_kit.domain.constant import DP_INPUT_FILE, DP_ORIGINAL_MODEL, DP_FROZEN_
 
 from dflow_galaxy.core.pydantic import BaseModel
 from dflow_galaxy.core.dispatcher import BaseApp, PythonApp, create_dispatcher, ExecutorConfig
-from dflow_galaxy.core.dflow import DFlowBuilder
+from dflow_galaxy.core.dflow_builder import DFlowBuilder
 from dflow_galaxy.core.util import bash_iter_ls_slice, safe_ln, bash_ln_cmd, bash_inspect_dir, inspect_dir
 from dflow_galaxy.core.log import get_logger
 from dflow_galaxy.core import types
