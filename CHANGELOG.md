@@ -1,4 +1,10 @@
 # Change Log
+
+## 0.1.8
+* upgrade ai2-kit to 0.18.1
+* DFlowBuilder: support optional type
+* chore: introduce ruff
+
 ## 0.1.7
 * add jupyterlab to docker image
 * upgrade ai2-kit to 0.16.0
