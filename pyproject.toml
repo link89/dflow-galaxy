@@ -26,3 +26,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 dgcli = "dflow_galaxy.main:main"
+
+[tool.ruff]
+preview = true
+line-length = 120
+
+[tool.ruff.lint]
+explicit-preview-rules = true
+ignore = ["E741", "F541", "F841", "F401", "E731", "E722"]
+extend-select = ["PLR1704"]

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from dflow_galaxy.core import dflow_builder, types, dispatcher
+from dflow_galaxy.core import types, dispatcher
+from dflow_galaxy.core.dflow_builder import DFlowBuilder
 import shutil
 import os
 
@@ -40,7 +41,7 @@ def run_cp2k_workflow(input_dir: str,
     bohrium_config = dispatcher.BohriumConfig()
 
     # start to build workflow
-    dflow_builder = dflow_builder.DFlowBuilder('cp2k', s3_prefix='cp2k')
+    dflow_builder = DFlowBuilder('cp2k', s3_prefix='cp2k')
 
     # setup and add cp2k step to workflow
     cp2k_res = dispatcher.Resource(
