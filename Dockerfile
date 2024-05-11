@@ -1,5 +1,5 @@
 # Form previous image can save time of pip install
-FROM link89/dflow-galaxy:0.1.7-main-07745fb
+FROM link89/dflow-galaxy:0.1.8-main-1b0d08c
 
 # Uncomment the following settings to build from scratch
 # FROM python:3.10
