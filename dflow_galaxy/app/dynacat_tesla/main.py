@@ -3,7 +3,7 @@ from dp.launching.typing import Int, String, Enum, Float, Boolean, List, Optiona
 from dp.launching.cli import to_runner, default_minimal_exception_handler
 from dp.launching.report import Report, ReportSection, ChartReportElement
 
-from dflow_galaxy.app.common import DFlowOptionsMixin, setup_dflow_context, EnsembleOptions
+from dflow_galaxy.app.common import DFlowOptions, setup_dflow_context, EnsembleOptions
 from dflow_galaxy.res import get_res_path
 from dflow_galaxy.core.log import get_logger
 from dflow_galaxy.core.util import parse_string_array, str_or_none
@@ -183,7 +183,7 @@ class Cp2kSettings(BaseModel):
         description="Setup script for CP2K simulation, note that it depends on the docker image you used")
 
 
-class DynacatTeslaArgs(BaseModel, DFlowOptionsMixin):
+class DynacatTeslaArgs(DFlowOptions):
     deepmd_dataset : InputFilePath = Field(
         title='DeepMD Dataset',
         description="DeepMD in zip or tgz format, for example: deepmd-dataset.tgz, dp-dataset.zip")

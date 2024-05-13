@@ -2,7 +2,7 @@ from dp.launching.typing import BaseModel, Field, OutputDirectory, InputFilePath
 from dp.launching.typing import Int, String, Enum, Float, Boolean, Set
 from dp.launching.cli import to_runner
 
-from dflow_galaxy.app.common import DFlowOptionsMixin, setup_dflow_context
+from dflow_galaxy.app.common import DFlowOptions, setup_dflow_context
 from dflow_galaxy.res import get_cp2k_data_dir
 from dflow_galaxy.core.log import get_logger
 from ai2_kit.feat import catalysis as ai2cat
@@ -75,7 +75,7 @@ class PotentialOptions(String, Enum):
     LnPP1_POTENTIALS = "LnPP1_POTENTIALS"
 
 
-class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
+class Cp2kLightningArgs(DFlowOptions):
 
     dry_run: Boolean = Field(
         default = True,
