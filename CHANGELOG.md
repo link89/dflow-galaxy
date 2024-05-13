@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.1.9
+* upgrade ai2-kit to 0.18.3
+* fix some DflowBuilder bugs
+
 ## 0.1.8
 * upgrade ai2-kit to 0.18.1
 * DFlowBuilder: support optional type
