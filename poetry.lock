@@ -2,13 +2,13 @@
 
 [[package]]
 name = "ai2-kit"
-version = "0.18.1"
+version = "0.18.3"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "ai2_kit-0.18.1-py3-none-any.whl", hash = "sha256:dac8c964ce08a935666fb77b494b1112a7fd8057e9fb4501b04b46f57e21f8ea"},
-    {file = "ai2_kit-0.18.1.tar.gz", hash = "sha256:d08978f478987349c054a2742be8372cb035e9fb89372a792883bf3c3b9aad10"},
+    {file = "ai2_kit-0.18.3-py3-none-any.whl", hash = "sha256:0b9386694a8d05ed5b65f1288a8602fe6304806e4199536618d88108f3452339"},
+    {file = "ai2_kit-0.18.3.tar.gz", hash = "sha256:e207774101c6803afa8da1ce71191d7d79b7dd875e63742c158c8de5b6e41349"},
 ]
 
 [package.dependencies]
@@ -3421,4 +3421,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "6bc0fa00b260a9438b3f0640f2cb02bfe3226e347ca0a471e743a74190cb0a54"
+content-hash = "03df159297ddaedfafed835a8228d333c6afe9867652f26a8e753f0bff1c3e1e"
