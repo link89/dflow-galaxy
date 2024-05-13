@@ -186,7 +186,7 @@ class Cp2kSettings(BaseModel):
 class DynacatTeslaArgs(BaseModel, DFlowOptionsMixin):
     deepmd_dataset : InputFilePath = Field(
         title='DeepMD Dataset',
-        description="DeepMD in zip or tgz format, for example: deepmd-dataset.tgz")
+        description="DeepMD in zip or tgz format, for example: deepmd-dataset.tgz, dp-dataset.zip")
 
     deepmd_input_template: Optional[InputFilePath] = Field(
         title='DeepMD Input Template',
