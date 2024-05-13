@@ -132,7 +132,7 @@ class LammpsSetting(BaseModel):
         description='Whether to use periodic boundary condition')
 
     concurrency: Int = Field(
-        default=5,
+        default=20,
         description="Number of concurrent run")
 
     cmd: String = Field(
@@ -166,7 +166,7 @@ class Cp2kSettings(BaseModel):
         description="Limit of the number of structures to be labeled for each iteration")
 
     concurrency: Int = Field(
-        default=5,
+        default=20,
         description="Number of concurrent run")
 
     cmd: String = Field(
