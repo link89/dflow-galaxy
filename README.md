@@ -41,8 +41,9 @@ poetry shell
 ## Bohrium App
 The entry of the Bohrium App are in the [launch_app](./launch_app/) directory, and the actual implementation are in the [dflow_galaxy/app](./dflow_galaxy/app/) directory.
 
-Document for Bohrium App development can be found [here](https://dptechnology.feishu.cn/docx/JPqgdmN1woxO8jxRtMycqWPQnIg)
-
+### Documents
+* [Bohrium App development](https://dptechnology.feishu.cn/docx/JPqgdmN1woxO8jxRtMycqWPQnIg)
+* [Publish New Bohrium App](https://dptechnology.feishu.cn/wiki/GS1Wwaa1niOPyJkmqqTcJ0r1nfb)
 
 
 ## Distribution
