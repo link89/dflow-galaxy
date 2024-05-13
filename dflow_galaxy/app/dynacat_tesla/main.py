@@ -36,7 +36,7 @@ BH_LAMMPS_DEFAULT = BH_DEEPMD_DEFAULT
 
 BH_CP2K_DEFAULT = {
     'image_name': 'registry.dp.tech/dptech/cp2k:11',
-    'scass_type': 'c32_m64_cpu',
+    'scass_type': 'c64_m256_cpu',
 }
 
 BH_PYTHON_DEFAULT = {
@@ -170,7 +170,7 @@ class Cp2kSettings(BaseModel):
         description="Number of concurrent run")
 
     cmd: String = Field(
-        default='mpirun -np 32 cp2k.popt',
+        default='mpirun -np 64 cp2k.popt',
         description="Script to run CP2K simulation, note that it depends on the docker image")
 
     setup_script: String = Field(

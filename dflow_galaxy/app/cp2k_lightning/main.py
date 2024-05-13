@@ -122,7 +122,7 @@ class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
         description="Docker image for running CP2K simulation")
 
     cp2k_device_model: String = Field(
-        default='c32_m64_cpu',
+        default='c64_m256_cpu',
         description="Device model for CP2K simulation")
 
     cp2k_script: String = Field(
@@ -131,7 +131,7 @@ class Cp2kLightningArgs(BaseModel, DFlowOptionsMixin):
             '# 2. cp2k.aimd.inp for aimd and cp2k.dft.inp for dft',
             '# Note that different container may have different setup',
             'source /opt/cp2k-toolchain/install/setup',
-            'mpirun -n 32 cp2k.popt -i cp2k.aimd.inp &> output',
+            'mpirun -n 64 cp2k.popt -i cp2k.aimd.inp &> output',
             'rm *.wfn  # reduce the size of output file',
         ]),
         format='multi-line',
